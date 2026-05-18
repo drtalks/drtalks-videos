@@ -1,0 +1,356 @@
+/*
+ * DrTalks Videos — frontend styles
+ * font-family is intentionally never set here — all text inherits from the active theme.
+ * font-size and margin/padding/line-height are set explicitly throughout.
+ */
+
+.drtalks-video-embed,
+.drtalks-single-video {
+    max-width: 100%;
+}
+
+/* 16:9 responsive video wrapper */
+.drtalks-video-player {
+    position: relative;
+    padding-bottom: 56.25%;
+    height: 0;
+    overflow: hidden;
+    background: #000;
+    border-radius: 4px;
+}
+
+.drtalks-video-player iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+}
+
+/* Transcript accordion */
+.drtalks-video-transcript {
+    margin-top: 16px;
+}
+
+.drtalks-video-transcript details {
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    padding: 8px 14px;
+}
+
+.drtalks-video-transcript summary {
+    cursor: pointer;
+    font-size: 0.95rem;
+    font-weight: 600;
+    user-select: none;
+    padding: 4px 0;
+}
+
+.drtalks-transcript-content {
+    font-size: 0.9rem;
+    line-height: 1.75;
+    margin-top: 12px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+/* Archive grid */
+.drtalks-archive-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 24px 16px;
+}
+
+.drtalks-video-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 24px;
+    margin-top: 24px;
+}
+
+.drtalks-video-card {
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    overflow: hidden;
+    background: #fff;
+    transition: box-shadow .15s ease;
+}
+
+.drtalks-video-card:hover {
+    box-shadow: 0 4px 16px rgba(0,0,0,.1);
+}
+
+.drtalks-card-link {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+}
+
+.drtalks-card-thumbnail {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    background: #111;
+}
+
+.drtalks-card-thumbnail img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.drtalks-card-duration {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    background: rgba(0,0,0,.75);
+    color: #fff;
+    font-size: 12px;
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+
+.drtalks-card-body {
+    padding: 12px;
+}
+
+.drtalks-card-title {
+    font-size: 1rem;
+    margin: 0 0 6px;
+    line-height: 1.4;
+}
+
+.drtalks-card-expert {
+    font-size: 0.875rem;
+    color: #666;
+    margin: 0;
+}
+
+.drtalks-pagination {
+    margin-top: 32px;
+}
+
+/* ---- Single video page ---------------------------------------------------- */
+
+.drtalks-video-player {
+    position: relative;
+    padding-bottom: 56.25%;
+    height: 0;
+    overflow: hidden;
+}
+
+.drtalks-video-player iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+}
+
+.drtalks-video-thumbnail-fallback {
+    display: block;
+    width: 100%;
+    max-height: 500px;
+    object-fit: cover;
+}
+
+.drtalks-video-content {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 32px 16px 64px;
+}
+
+.drtalks-video-title {
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1.25;
+    margin: 16px 0 12px;
+}
+
+.drtalks-watch-cta {
+    text-align: right;
+    margin: 6px 0 20px;
+}
+
+.drtalks-watch-link {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #0d3c44;
+    text-decoration: underline;
+}
+
+.drtalks-watch-link:hover {
+    color: #0d3c44;
+    text-decoration: none;
+}
+
+.drtalks-video-description {
+    font-size: 1rem;
+    line-height: 1.75;
+    margin-top: 20px;
+    margin-bottom: 28px;
+}
+
+/* Expert bio section */
+.drtalks-expert-bio {
+    margin-top: 40px;
+    padding-top: 28px;
+    border-top: 2px solid #e0e0e0;
+}
+
+.drtalks-expert-heading {
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: #888;
+    margin: 0 0 16px;
+}
+
+.drtalks-expert-card {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+}
+
+.drtalks-expert-photo {
+    width: 88px;
+    height: 88px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.drtalks-expert-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.drtalks-expert-name {
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin: 0 0 3px;
+}
+
+.drtalks-expert-title {
+    font-size: 0.9rem;
+    color: #444;
+    margin: 0 0 2px;
+}
+
+.drtalks-expert-credentials {
+    font-size: 0.85rem;
+    color: #777;
+    margin: 0 0 10px;
+}
+
+.drtalks-expert-bio-text {
+    font-size: 0.95rem;
+    line-height: 1.7;
+    margin-top: 8px;
+}
+
+.drtalks-expert-profile-link {
+    display: inline-block;
+    margin-top: 12px;
+    font-size: 0.875rem;
+    color: #0d3c44;
+    text-decoration: underline;
+    font-weight: 700;
+}
+
+.drtalks-expert-profile-link:hover {
+    text-decoration: none;
+}
+
+@media ( max-width: 600px ) {
+    .drtalks-expert-card {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+    .drtalks-expert-profile-link {
+        display: block;
+    }
+}
+
+/* ---- Video Page layout — YouTube-style two-column ------------------------- */
+
+.drtalks-layout-video {
+    max-width: 100%;
+}
+
+.drtalks-yt-wrap {
+    display: flex;
+    align-items: flex-start;
+    gap: 28px;
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 24px 20px 64px;
+}
+
+/* Left column */
+.drtalks-yt-main {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+.drtalks-yt-main .drtalks-video-player {
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 0;
+}
+
+
+.drtalks-yt-main .drtalks-watch-cta {
+    margin-bottom: 16px;
+}
+
+.drtalks-yt-main .drtalks-video-description {
+    margin-bottom: 28px;
+}
+
+/* Right column — transcript sidebar */
+.drtalks-yt-sidebar {
+    width: 340px;
+    flex-shrink: 0;
+    position: sticky;
+    top: 80px;
+    max-height: calc(100vh - 100px);
+    overflow-y: auto;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    background: #fafafa;
+    padding: 16px 18px;
+}
+
+.drtalks-sidebar-heading {
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: #888;
+    margin: 0 0 14px;
+}
+
+.drtalks-yt-sidebar .drtalks-transcript-content {
+    max-height: none;
+    overflow-y: visible;
+    font-size: 0.9em;
+    line-height: 1.75;
+    color: #333;
+}
+
+@media ( max-width: 900px ) {
+    .drtalks-yt-wrap {
+        flex-direction: column;
+    }
+    .drtalks-yt-sidebar {
+        width: 100%;
+        position: static;
+        max-height: 400px;
+    }
+}

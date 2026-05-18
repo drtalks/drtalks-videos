@@ -1,0 +1,20 @@
+{
+  "name": "drtalks/video",
+  "title": "DrTalks Video",
+  "category": "embed",
+  "description": "Embed a DrTalks video with transcript.",
+  "supports": {
+    "html": false
+  },
+  "attributes": {
+    "videoSlug":       { "type": "string",  "default": "" },
+    "videoTitle":      { "type": "string",  "default": "" },
+    "videoThumbnail":  { "type": "string",  "default": "" },
+    "showTitle":       { "type": "boolean", "default": true },
+    "showDescription": { "type": "boolean", "default": true },
+    "showTranscript":  { "type": "boolean", "default": true },
+    "showAuthor":      { "type": "boolean", "default": true }
+  },
+  "render": "file:./render.php",
+  "textdomain": "drtalks-videos"
+}

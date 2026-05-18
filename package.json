@@ -1,0 +1,13 @@
+{
+  "name": "drtalks-videos",
+  "version": "1.0.0",
+  "description": "DrTalks Videos WordPress plugin",
+  "private": true,
+  "scripts": {
+    "build": "wp-scripts build blocks/src/index.js --output-path=blocks/build",
+    "start": "wp-scripts start blocks/src/index.js --output-path=blocks/build"
+  },
+  "devDependencies": {
+    "@wordpress/scripts": "^27.0"
+  }
+}
