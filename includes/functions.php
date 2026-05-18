@@ -122,26 +122,16 @@ function drtalks_get_transcript( string $slug ): string {
 	}
 
 	// 3. Background refresh — do not block page render.
-	if ( ! wp_next_scheduled( 'drtalks_fetch_transcript', [ $slug ] ) ) {
-		wp_schedule_single_event( time() + 5, 'drtalks_fetch_transcript', [ $slug ] );
+	// Background fetch via Action Scheduler.
+	if ( class_exists( 'DrTalks_Scheduler' ) ) {
+		DrTalks_Scheduler::queue_fetch_transcript( $slug );
 	}
 
 	return '';
 }
 
-// Background event: fetch + cache transcript.
-add_action( 'drtalks_fetch_transcript', function ( string $slug ) {
-	$api    = new DrTalks_API_Client();
-	$result = $api->get_video( $slug );
-	if ( is_wp_error( $result ) ) {
-		return;
-	}
-
-	$transcript = $result['_drtalks_transcript'] ?? '';
-	if ( $transcript ) {
-		set_transient( 'drtalks_transcript_' . sanitize_key( $slug ), $transcript, DAY_IN_SECONDS );
-	}
-} );
+// Transcript fetch is now handled by DrTalks_Scheduler::run_fetch_transcript()
+// via Action Scheduler (hook drtalks/fetch_transcript). See includes/class-scheduler.php.
 
 /**
  * Inject the full video layout into the block theme's wp:post-content slot.
@@ -201,7 +191,8 @@ function drtalks_get_video_meta( int $post_id ): array {
  * "Theme" layout — standard content flow with max-width body.
  */
 function drtalks_render_single_video_content_theme( int $post_id ): string {
-	$m = drtalks_get_video_meta( $post_id );
+	$m          = drtalks_get_video_meta( $post_id );
+	$show_watch = (bool) get_option( 'drtalks_show_watch_button', true );
 	ob_start();
 	?>
 	<div class="drtalks-single-video drtalks-layout-theme">
@@ -221,21 +212,21 @@ function drtalks_render_single_video_content_theme( int $post_id ): string {
 			<img src="<?php echo esc_url( $m['thumbnail'] ); ?>" alt="<?php echo esc_attr( get_the_title( $post_id ) ); ?>" class="drtalks-video-thumbnail-fallback">
 			<?php endif; ?>
 
-			<?php if ( $m['drtalks_url'] ) : ?>
-			<div class="drtalks-watch-cta">
-				<a href="<?php echo esc_url( $m['drtalks_url'] ); ?>" class="drtalks-watch-link" target="_blank" rel="noopener noreferrer">Watch on DrTalks</a>
-			</div>
-			<?php endif; ?>
+		<?php if ( $show_watch && $m['drtalks_url'] ) : ?>
+		<div class="drtalks-watch-cta">
+			<a href="<?php echo esc_url( $m['drtalks_url'] ); ?>" class="drtalks-watch-link" target="_blank" rel="noopener noreferrer">Watch on DrTalks</a>
+		</div>
+		<?php endif; ?>
 
-			<h1 class="drtalks-video-title"><?php echo esc_html( get_the_title( $post_id ) ); ?></h1>
+		<h1 class="drtalks-video-title"><?php echo esc_html( get_the_title( $post_id ) ); ?></h1>
 
-			<?php if ( $m['description'] ) : ?>
-			<div class="drtalks-video-description">
-				<?php echo wp_kses( $m['description'], $m['allowed_html'] ); ?>
-			</div>
-			<?php endif; ?>
+		<?php if ( $m['description'] ) : ?>
+		<div class="drtalks-video-description">
+			<?php echo wp_kses( $m['description'], $m['allowed_html'] ); ?>
+		</div>
+		<?php endif; ?>
 
-			<?php if ( $m['transcript'] ) : ?>
+		<?php if ( $m['transcript'] ) : ?>
 			<div class="drtalks-video-transcript">
 				<details>
 					<summary><?php esc_html_e( 'View Transcript', 'drtalks-videos' ); ?></summary>
@@ -261,7 +252,8 @@ function drtalks_render_single_video_content_theme( int $post_id ): string {
  *   Right: transcript sidebar
  */
 function drtalks_render_single_video_content_video( int $post_id ): string {
-	$m = drtalks_get_video_meta( $post_id );
+	$m          = drtalks_get_video_meta( $post_id );
+	$show_watch = (bool) get_option( 'drtalks_show_watch_button', true );
 	ob_start();
 	?>
 	<div class="drtalks-single-video drtalks-layout-video">
@@ -284,21 +276,21 @@ function drtalks_render_single_video_content_video( int $post_id ): string {
 				</div>
 				<?php endif; ?>
 
-				<?php if ( $m['drtalks_url'] ) : ?>
-				<div class="drtalks-watch-cta">
-					<a href="<?php echo esc_url( $m['drtalks_url'] ); ?>" class="drtalks-watch-link" target="_blank" rel="noopener noreferrer">Watch on DrTalks</a>
-				</div>
-				<?php endif; ?>
+			<?php if ( $show_watch && $m['drtalks_url'] ) : ?>
+			<div class="drtalks-watch-cta">
+				<a href="<?php echo esc_url( $m['drtalks_url'] ); ?>" class="drtalks-watch-link" target="_blank" rel="noopener noreferrer">Watch on DrTalks</a>
+			</div>
+			<?php endif; ?>
 
-				<h1 class="drtalks-video-title"><?php echo esc_html( get_the_title( $post_id ) ); ?></h1>
+			<h1 class="drtalks-video-title"><?php echo esc_html( get_the_title( $post_id ) ); ?></h1>
 
-				<?php if ( $m['description'] ) : ?>
-				<div class="drtalks-video-description">
-					<?php echo wp_kses( $m['description'], $m['allowed_html'] ); ?>
-				</div>
-				<?php endif; ?>
+			<?php if ( $m['description'] ) : ?>
+			<div class="drtalks-video-description">
+				<?php echo wp_kses( $m['description'], $m['allowed_html'] ); ?>
+			</div>
+			<?php endif; ?>
 
-				<?php drtalks_render_expert_bio( $m ); ?>
+			<?php drtalks_render_expert_bio( $m ); ?>
 
 			</div>
 
@@ -380,7 +372,6 @@ function drtalks_render_block_video( string $slug, array $options = [] ): string
 
 	if ( ! $posts ) {
 		// No local post yet — sync it now so description/transcript/author are available.
-		error_log( '[DrTalks render_block_video] slug=' . $slug . ' — no CPT post found, syncing now.' );
 		$sync = new DrTalks_Sync();
 		$sync->sync_video( $slug );
 
@@ -399,13 +390,9 @@ function drtalks_render_block_video( string $slug, array $options = [] ): string
 		$post_id = $posts[0]->ID;
 		$m       = drtalks_get_video_meta( $post_id );
 		$title   = get_the_title( $post_id );
-		error_log( '[DrTalks render_block_video] slug=' . $slug . ' post_id=' . $post_id
-			. ' has_desc=' . ( ! empty( $m['description'] ) ? 'yes' : 'no' )
-			. ' has_transcript=' . ( ! empty( $m['transcript'] ) ? 'yes' : 'no' )
-			. ' has_expert=' . ( ! empty( $m['expert_name'] ) ? 'yes(' . $m['expert_name'] . ')' : 'no' ) );
 	} else {
 		// Sync failed — render player-only fallback.
-		error_log( '[DrTalks render_block_video] slug=' . $slug . ' — sync failed, using embed fallback.' );
+		DrTalks_Debug::error( 'render_block_video: sync failed, using embed fallback', [ 'slug' => $slug ] );
 		$m             = [];
 		$title         = $slug;
 		$m['embed_url']    = 'https://drtalks.com/embed/videos/' . rawurlencode( $slug );
@@ -435,11 +422,11 @@ function drtalks_render_block_video( string $slug, array $options = [] ): string
 			</div>
 			<?php endif; ?>
 
-			<?php if ( $show_video && ! empty( $m['drtalks_url'] ) ) : ?>
-			<div class="drtalks-watch-cta">
-				<a href="<?php echo esc_url( $m['drtalks_url'] ); ?>" class="drtalks-watch-link" target="_blank" rel="noopener noreferrer">Watch on DrTalks</a>
-			</div>
-			<?php endif; ?>
+		<?php if ( $show_video && ! empty( $m['drtalks_url'] ) && get_option( 'drtalks_show_watch_button', true ) ) : ?>
+		<div class="drtalks-watch-cta">
+			<a href="<?php echo esc_url( $m['drtalks_url'] ); ?>" class="drtalks-watch-link" target="_blank" rel="noopener noreferrer">Watch on DrTalks</a>
+		</div>
+		<?php endif; ?>
 
 			<?php if ( $show_title ) : ?>
 			<h2 class="drtalks-video-title"><?php echo esc_html( $title ); ?></h2>

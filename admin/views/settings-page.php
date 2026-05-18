@@ -12,7 +12,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 $archive_slug   = get_option( 'drtalks_archive_slug', 'videos' );
 $expert_slug    = get_option( 'drtalks_expert_slug', '' );
 $sync_schedule  = get_option( 'drtalks_sync_schedule', 'daily' );
-$next_cron      = wp_next_scheduled( 'drtalks_sync_cron' );
+$next_cron      = function_exists( 'as_next_scheduled_action' )
+	? as_next_scheduled_action( DrTalks_Scheduler::HOOK_SYNC_ALL, [], DrTalks_Scheduler::GROUP )
+	: false;
 ?>
 <div class="wrap">
 	<h1><?php esc_html_e( 'DrTalks Videos', 'drtalks-videos' ); ?></h1>

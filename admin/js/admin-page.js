@@ -37,6 +37,7 @@
 	// --- State ---------------------------------------------------------------
 
 	let state = {
+		showWatchButton     : drtalksAdmin.showWatchButton !== false,
 		archiveEnabled      : drtalksAdmin.archiveEnabled,
 		archiveSlug         : drtalksAdmin.archiveSlug,
 		syncSchedule        : drtalksAdmin.syncSchedule,
@@ -53,6 +54,7 @@
 
 	// --- DOM refs ------------------------------------------------------------
 
+	const showWatchButtonCb = document.getElementById( 'drtalks-show-watch-button' );
 	const archiveEnabledCb  = document.getElementById( 'drtalks-archive-enabled' );
 	const archiveSettings   = document.getElementById( 'drtalks-archive-settings' );
 	const archiveContent    = document.getElementById( 'drtalks-archive-content' );
@@ -83,9 +85,9 @@
 		};
 	}
 
-	function ajax( action, data ) {
+	function ajax( action, data, signal ) {
 		const body = new URLSearchParams( { action, nonce, ...data } );
-		return fetch( ajaxUrl, { method: 'POST', body } )
+		return fetch( ajaxUrl, { method: 'POST', body, signal } )
 			.then( async r => {
 				const text = await r.text();
 				try {
@@ -96,6 +98,9 @@
 				}
 			} )
 			.catch( err => {
+				if ( err && err.name === 'AbortError' ) {
+					return { success: false, data: null, aborted: true };
+				}
 				console.error( '[drtalks] AJAX failed for', action, err );
 				return { success: false, data: 'Network error: ' + ( err && err.message ? err.message : 'request failed' ) };
 			} );
@@ -141,6 +146,11 @@
 		archiveUrlPreview.textContent = siteUrl + ( state.archiveSlug || 'videos' ) + '/';
 	}
 
+	showWatchButtonCb.addEventListener( 'change', function () {
+		state.showWatchButton = this.checked;
+		saveSettings();
+	} );
+
 	archiveEnabledCb.addEventListener( 'change', function () {
 		state.archiveEnabled = this.checked;
 		updateArchiveUI();
@@ -184,6 +194,7 @@
 
 	function saveSettings() {
 		ajax( 'drtalks_save_settings', {
+			show_watch_button   : state.showWatchButton ? 1 : 0,
 			archive_enabled     : state.archiveEnabled ? 1 : 0,
 			archive_slug        : state.archiveSlug,
 			sync_schedule       : state.syncSchedule,
@@ -229,6 +240,7 @@
 			searchController.abort();
 		}
 		searchController = new AbortController();
+		const signal = searchController.signal;
 
 		if ( ! q ) {
 			setInnerHtml( searchResultsEl, '<p class="drtalks-empty-state">Search above to find videos to add.</p>' );
@@ -237,8 +249,9 @@
 
 		setInnerHtml( searchResultsEl, '<p class="drtalks-loading">Searching…</p>' );
 
-		ajax( 'drtalks_search_videos', { q, per_page: 20, page: 1 } )
+		ajax( 'drtalks_search_videos', { q, per_page: 20, page: 1 }, signal )
 			.then( res => {
+				if ( res.aborted ) return;
 				if ( ! res.success || ! res.data.videos?.length ) {
 					setInnerHtml( searchResultsEl, '<p class="drtalks-empty-state">No results found.</p>' );
 					return;
@@ -248,7 +261,7 @@
 				attachSearchCardListeners();
 			} )
 			.catch( () => {} );
-	}, 300 );
+	}, 400 );
 
 	videoSearchInput.addEventListener( 'input', function () {
 		doSearch( this.value.trim() );
@@ -308,6 +321,8 @@
 		const expertSlugSet = new Set( state.expertSlugs.map( e => e.slug ) );
 		const visible = state.selectedVideos.filter( v => ! expertSlugSet.has( v.expert_slug ) );
 
+		updateSectionCount( 'drtalks-selected-count', visible.length );
+
 		if ( ! visible.length ) {
 			setInnerHtml( selectedVideosEl, '<p class="drtalks-empty-state">No videos added yet. Search on the left to get started.</p>' );
 			return;
@@ -315,6 +330,12 @@
 		const html = visible.map( v => renderSelectedVideoCard( v ) ).join( '' );
 		setInnerHtml( selectedVideosEl, html );
 		attachSelectedCardListeners();
+	}
+
+	function updateSectionCount( elementId, count ) {
+		const el = document.getElementById( elementId );
+		if ( ! el ) { return; }
+		el.textContent = count > 0 ? '(' + count + ')' : '';
 	}
 
 	function renderVideoCard( v, actionBtn ) {
@@ -479,19 +500,31 @@
 					renderExpertCards();
 				}
 				replaceExpertVideos( slug );
+				// Refresh the status bar — sync batches may now be running.
+				clearTimeout( globalSyncTimer );
+				globalSyncTimer = setTimeout( loadGlobalSyncStatus, 2000 );
 			} );
 		}
 	} );
 
+	let expertSearchController = null;
+
 	const doExpertSearch = debounce( function ( q ) {
+		if ( expertSearchController ) {
+			expertSearchController.abort();
+		}
+		expertSearchController = new AbortController();
+		const signal = expertSearchController.signal;
+
 		hideError( addExpertError );
 		if ( ! q ) {
 			setInnerHtml( expertSearchResults, '' );
 			return;
 		}
 		setInnerHtml( expertSearchResults, '<p class="drtalks-loading">Searching…</p>' );
-		ajax( 'drtalks_search_experts', { q, per_page: 10 } )
+		ajax( 'drtalks_search_experts', { q, per_page: 10 }, signal )
 			.then( res => {
+				if ( res.aborted ) return;
 				if ( ! res.success || ! res.data.experts?.length ) {
 					setInnerHtml( expertSearchResults, '<p class="drtalks-empty-state">No experts found.</p>' );
 					return;
@@ -501,7 +534,7 @@
 				attachExpertSearchListeners();
 			} )
 			.catch( () => {} );
-	}, 300 );
+	}, 400 );
 
 	expertSearchInput.addEventListener( 'input', function () {
 		updateExpertSearchVisibility();
@@ -690,6 +723,8 @@
 		const hiddenSlugs = new Set( state.hiddenVideos.map( h => h.slug ) );
 		const visible     = state.expertVideos.filter( v => ! hiddenSlugs.has( v.slug ) );
 
+		updateSectionCount( 'drtalks-expert-videos-count', visible.length );
+
 		if ( ! visible.length ) {
 			setInnerHtml( expertVideosEl, '<p class="drtalks-empty-state">No videos yet. Sync may still be in progress.</p>' );
 			return;
@@ -782,57 +817,72 @@
 		} );
 	}
 
-	// --- Orphaned posts -------------------------------------------------------
+	// --- Global sync status bar -----------------------------------------------
 
-	const orphansBodyEl = document.getElementById( 'drtalks-orphans-body' );
+	const globalSyncStatusEl = document.getElementById( 'drtalks-global-sync-status' );
+	const globalSyncDotEl    = globalSyncStatusEl && globalSyncStatusEl.querySelector( '.drtalks-sync-status-dot' );
+	const globalSyncTextEl   = globalSyncStatusEl && globalSyncStatusEl.querySelector( '.drtalks-sync-status-text' );
+	let   globalSyncTimer    = null;
 
-	function loadOrphans() {
-		orphansBodyEl.innerHTML = '<p class="drtalks-empty-state">Loading…</p>';
-		ajax( 'drtalks_get_orphans', {} ).then( res => {
-			if ( ! res.success ) {
-				orphansBodyEl.innerHTML = '<p class="drtalks-error-msg">Could not load orphans.</p>';
-				return;
-			}
-			const orphans = res.data.orphans || [];
-			if ( orphans.length === 0 ) {
-				orphansBodyEl.innerHTML = '<p class="drtalks-empty-state">No orphaned posts found. All good!</p>';
-				return;
-			}
-			let html = `<p style="margin:0 0 12px;">Found <strong>${orphans.length}</strong> orphaned post${orphans.length === 1 ? '' : 's'}.</p>`;
-			html += '<div class="drtalks-orphan-list">';
-			orphans.forEach( o => {
-				html += `<div class="drtalks-orphan-item">
-					<span class="drtalks-orphan-title">${o.title || '(no title)'}</span>
-					<code class="drtalks-orphan-slug">${o.slug}</code>
-				</div>`;
-			} );
-			html += '</div>';
-			html += `<button id="drtalks-delete-orphans-btn" class="button button-secondary" style="margin-top:14px;color:#b32d2e;border-color:#b32d2e;">Delete All ${orphans.length} Orphan${orphans.length === 1 ? '' : 's'}</button>`;
-			orphansBodyEl.innerHTML = html;
+	function formatSyncTime( unixTs ) {
+		const d   = new Date( unixTs * 1000 );
+		const now = new Date();
+		const isSameDay = d.toDateString() === now.toDateString();
 
-			document.getElementById( 'drtalks-delete-orphans-btn' ).addEventListener( 'click', function () {
-				drtalksConfirm( `Permanently delete ${orphans.length} orphaned video post${orphans.length === 1 ? '' : 's'}? This cannot be undone.` ).then( confirmed => {
-					if ( ! confirmed ) return;
-					this.disabled  = true;
-					this.textContent = 'Deleting…';
-					ajax( 'drtalks_delete_orphans', {} ).then( res2 => {
-						if ( ! res2.success ) {
-							this.disabled = false;
-							this.textContent = 'Delete All Orphans';
-							alert( res2.data || 'Could not delete orphans.' );
-							return;
-						}
-						orphansBodyEl.innerHTML = `<p class="drtalks-empty-state">Deleted ${res2.data.deleted} post${res2.data.deleted === 1 ? '' : 's'}. All clean!</p>`;
-					} ).catch( () => {
-						this.disabled = false;
-						this.textContent = 'Delete All Orphans';
-					} );
-				} );
-			} );
+		const tomorrow = new Date( now );
+		tomorrow.setDate( tomorrow.getDate() + 1 );
+		const isTomorrow = d.toDateString() === tomorrow.toDateString();
+
+		const time = d.toLocaleTimeString( [], { hour: 'numeric', minute: '2-digit' } );
+		if ( isSameDay ) return time;
+		if ( isTomorrow ) return 'tomorrow at ' + time;
+		return d.toLocaleDateString( [], { month: 'short', day: 'numeric' } ) + ' at ' + time;
+	}
+
+	function renderGlobalSyncStatus( data ) {
+		if ( ! globalSyncStatusEl ) return;
+
+		const lastPart = data.last
+			? ' &mdash; last ran at ' + formatSyncTime( data.last )
+			: '';
+
+		globalSyncStatusEl.className = 'drtalks-global-sync-status';
+
+		let text = '';
+		if ( data.state === 'running' ) {
+			globalSyncStatusEl.classList.add( 'is-running' );
+			text = 'Sync in progress, started at ' + formatSyncTime( data.since ) + lastPart;
+		} else if ( data.state === 'scheduled' ) {
+			globalSyncStatusEl.classList.add( 'is-scheduled' );
+			text = 'Next sync at ' + formatSyncTime( data.next ) + lastPart;
+		} else if ( data.state === 'manual' ) {
+			globalSyncStatusEl.classList.add( 'is-manual' );
+			text = 'Manual sync only' + ( data.last ? lastPart : '' );
+		} else {
+			globalSyncStatusEl.classList.add( 'is-idle' );
+			text = data.last ? 'Idle' + lastPart : 'No sync scheduled yet.';
+		}
+
+		globalSyncTextEl.innerHTML = text;
+	}
+
+	function loadGlobalSyncStatus() {
+		ajax( 'drtalks_global_sync_status', {} ).then( res => {
+			if ( ! res || ! res.success ) return;
+			renderGlobalSyncStatus( res.data );
+
+			// If running, poll every 8s; otherwise refresh every 60s.
+			clearTimeout( globalSyncTimer );
+			const interval = res.data.state === 'running' ? 8000 : 60000;
+			globalSyncTimer = setTimeout( loadGlobalSyncStatus, interval );
+		} ).catch( () => {
+			clearTimeout( globalSyncTimer );
+			globalSyncTimer = setTimeout( loadGlobalSyncStatus, 30000 );
 		} );
 	}
 
-	loadOrphans();
+
+	loadGlobalSyncStatus();
 
 	// --- Initial render ------------------------------------------------------
 

@@ -8,9 +8,11 @@ Pull individual videos by slug, or auto-sync entire expert libraries on a schedu
 
 ## Requirements
 
-- WordPress 6.0+
+- WordPress 6.4+
 - PHP 8.0+
 - A WordPress permalink structure other than **Plain** (`Settings → Permalinks`). The plugin shows a yellow warning banner if this isn't set; individual video pages will return 404s on Plain.
+
+Background jobs (sync, transcript fetch) run via Action Scheduler, bundled with the plugin. You can monitor them at `Tools → Scheduled Actions`.
 
 ---
 
@@ -137,8 +139,7 @@ echo do_shortcode( '[drtalks_video_description slug="' . esc_attr( $slug ) . '"]
 |---|---|
 | Video URL looks like `?post_type=drtalks_video&p=14` and 404s | Go to `Settings → Permalinks`, pick any structure other than Plain (e.g. `/%postname%/`), click Save |
 | Expert card shows only the slug, no name or photo | Click **Sync Now** on the expert card |
-| Expert says "syncing" forever | Cron isn't firing on your server. Click **Sync Now** for an immediate sync, or set up a real cron job hitting `wp-cron.php` |
-| Search returns nothing | Confirm your server can reach `account.drtalks.com` |
+| Expert says "syncing" forever | Open `Tools → Scheduled Actions` and check the `drtalks` group. If actions are stuck in "pending", your server's cron isn't firing — click **Sync Now** on the expert card, or set up a real cron job hitting `wp-cron.php` |
 
 ---
 

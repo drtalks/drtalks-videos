@@ -90,16 +90,18 @@ class DrTalks_Debug {
 		}
 
 		$code = wp_remote_retrieve_response_code( $response );
+		if ( $code === 200 ) {
+			return; // Successful calls are silent.
+		}
+
 		$body = wp_remote_retrieve_body( $response );
 		$preview = strlen( $body ) > 300 ? substr( $body, 0, 300 ) . '…' : $body;
-
-		$level = ( $code === 200 ) ? 'INFO' : 'WARN';
-		self::log( 'API response', [
+		self::warn( 'API response', [
 			'url'     => $url,
 			'status'  => $code,
 			'body'    => $preview,
 			'elapsed' => round( $elapsed, 3 ),
-		], $level );
+		] );
 	}
 
 	/**
@@ -158,10 +160,17 @@ class DrTalks_Debug {
 			echo '<div class="notice notice-success"><p>Log cleared.</p></div>';
 		}
 
-		// Handle manual sync trigger.
+		// Handle manual sync trigger — runs the fan-out immediately, which queues
+		// per-expert chunks via Action Scheduler.
 		if ( isset( $_POST['drtalks_run_cron'] ) && check_admin_referer( 'drtalks_run_cron' ) ) {
-			do_action( 'drtalks_sync_cron' );
-			echo '<div class="notice notice-success"><p>Cron sync triggered.</p></div>';
+			DrTalks_Scheduler::run_sync_all_experts();
+			echo '<div class="notice notice-success"><p>Sync fan-out triggered. Watch progress at <a href="' . esc_url( admin_url( 'tools.php?page=action-scheduler&s=&status=&action-group=drtalks' ) ) . '">Tools &rsaquo; Scheduled Actions</a>.</p></div>';
+		}
+
+		// Handle schedule-orphan-cleanup action.
+		if ( isset( $_POST['drtalks_schedule_orphan_cleanup'] ) && check_admin_referer( 'drtalks_schedule_orphan_cleanup' ) ) {
+			DrTalks_Scheduler::queue_cleanup_orphans();
+			echo '<div class="notice notice-success"><p>Orphan cleanup scheduled. Orphaned posts will be permanently deleted shortly via Action Scheduler.</p></div>';
 		}
 
 		$log_path    = self::log_path();
@@ -186,7 +195,9 @@ class DrTalks_Debug {
 			'drtalks_experts_meta'        => get_option( 'drtalks_experts_meta' ),
 		];
 
-		$cron_next   = wp_next_scheduled( 'drtalks_sync_cron' );
+		$cron_next   = function_exists( 'as_next_scheduled_action' )
+			? as_next_scheduled_action( DrTalks_Scheduler::HOOK_SYNC_ALL, [], DrTalks_Scheduler::GROUP )
+			: false;
 		$cpt_count   = wp_count_posts( 'drtalks_video' )->publish ?? 0;
 		$php_version = PHP_VERSION;
 		$wp_version  = get_bloginfo( 'version' );
@@ -239,19 +250,65 @@ class DrTalks_Debug {
 			echo '</tbody></table>';
 			?>
 
-			<h2>Actions</h2>
-			<form method="post" style="display:inline-block;margin-right:12px;">
-				<?php wp_nonce_field( 'drtalks_run_cron' ); ?>
-				<input type="hidden" name="drtalks_run_cron" value="1">
-				<button class="button button-primary" type="submit">Run Cron Sync Now</button>
-			</form>
-			<form method="post" style="display:inline-block;">
-				<?php wp_nonce_field( 'drtalks_clear_log' ); ?>
-				<input type="hidden" name="drtalks_clear_log" value="1">
-				<button class="button" type="submit" onclick="return confirm('Clear the entire debug log?')">Clear Log</button>
-			</form>
+		<h2>Orphaned Video Posts</h2>
+		<p>Posts in the <code>drtalks_video</code> database table that are no longer tracked by any expert or individual video selection. They are hidden from the front-end but waste database space. The plugin automatically removes them once per day.</p>
+		<?php
+		$orphan_ids   = DrTalks_Scheduler::get_orphan_post_ids();
+		$orphan_count = count( $orphan_ids );
+		$next_cleanup = function_exists( 'as_next_scheduled_action' )
+			? as_next_scheduled_action( DrTalks_Scheduler::HOOK_CLEANUP_ORPHANS, [], DrTalks_Scheduler::GROUP )
+			: false;
+		$next_cleanup_str = $next_cleanup
+			? get_date_from_gmt( date( 'Y-m-d H:i:s', $next_cleanup ) )
+			: '<em>not scheduled — will be set up on next page load</em>';
+		?>
+		<table class="widefat fixed" style="max-width:700px;margin-bottom:12px;">
+			<tbody>
+				<tr><th>Orphaned posts found</th><td><strong><?php echo esc_html( $orphan_count ); ?></strong></td></tr>
+				<tr><th>Next automatic cleanup</th><td><?php echo $next_cleanup_str; // phpcs:ignore ?></td></tr>
+			</tbody>
+		</table>
+		<?php if ( $orphan_count > 0 ) : ?>
+		<details style="margin-bottom:12px;">
+			<summary style="cursor:pointer;font-weight:600;">Show <?php echo esc_html( $orphan_count ); ?> orphaned post<?php echo $orphan_count === 1 ? '' : 's'; ?></summary>
+			<table class="widefat fixed" style="max-width:700px;margin-top:8px;">
+				<thead><tr><th>ID</th><th>Title</th><th>Slug</th></tr></thead>
+				<tbody>
+					<?php foreach ( $orphan_ids as $oid ) : ?>
+					<tr>
+						<td><?php echo esc_html( $oid ); ?></td>
+						<td><?php echo esc_html( get_the_title( $oid ) ); ?></td>
+						<td><code><?php echo esc_html( get_post_meta( $oid, '_drtalks_video_slug', true ) ?: '—' ); ?></code></td>
+					</tr>
+					<?php endforeach; ?>
+				</tbody>
+			</table>
+		</details>
+		<form method="post" style="display:inline-block;">
+			<?php wp_nonce_field( 'drtalks_schedule_orphan_cleanup' ); ?>
+			<input type="hidden" name="drtalks_schedule_orphan_cleanup" value="1">
+			<button class="button button-secondary" type="submit" style="color:#b32d2e;border-color:#b32d2e;"
+				onclick="return confirm('Schedule immediate deletion of <?php echo esc_js( $orphan_count ); ?> orphaned post<?php echo $orphan_count === 1 ? '' : 's'; ?>?')">
+				Schedule Cleanup Now (<?php echo esc_html( $orphan_count ); ?> post<?php echo $orphan_count === 1 ? '' : 's'; ?>)
+			</button>
+		</form>
+		<?php else : ?>
+		<p style="color:green;">&#10003; No orphaned posts found.</p>
+		<?php endif; ?>
 
-			<h2>Debug Log <?php echo $log_exists ? '(' . esc_html( $log_size ) . ')' : '(no log file)'; ?></h2>
+		<h2>Actions</h2>
+		<form method="post" style="display:inline-block;margin-right:12px;">
+			<?php wp_nonce_field( 'drtalks_run_cron' ); ?>
+			<input type="hidden" name="drtalks_run_cron" value="1">
+			<button class="button button-primary" type="submit">Run Cron Sync Now</button>
+		</form>
+		<form method="post" style="display:inline-block;">
+			<?php wp_nonce_field( 'drtalks_clear_log' ); ?>
+			<input type="hidden" name="drtalks_clear_log" value="1">
+			<button class="button" type="submit" onclick="return confirm('Clear the entire debug log?')">Clear Log</button>
+		</form>
+
+		<h2>Debug Log <?php echo $log_exists ? '(' . esc_html( $log_size ) . ')' : '(no log file)'; ?></h2>
 			<?php if ( ! self::enabled() ) : ?>
 			<p style="color:#888">Logging is disabled. Add <code>define('DRTALKS_DEBUG', true);</code> to <code>wp-config.php</code> to start recording.</p>
 			<?php elseif ( $log_content ) : ?>

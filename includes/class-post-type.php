@@ -115,12 +115,6 @@ class DrTalks_Post_Type {
 		$archive_enabled = (bool) get_option( 'drtalks_archive_enabled', false );
 		$archive_slug    = get_option( 'drtalks_archive_slug', 'videos' );
 
-		error_log( '[DrTalks post_type] register drtalks_video: archive_enabled=' . var_export( $archive_enabled, true )
-			. ' archive_slug=' . $archive_slug
-			. ' → public=' . var_export( $archive_enabled, true )
-			. ' rewrite_slug=' . ( $archive_enabled ? sanitize_title( $archive_slug ) : 'FALSE (not public)' )
-		);
-
 		register_post_type( 'drtalks_video', [
 			'label'        => 'DrTalks Videos',
 			'labels'       => [

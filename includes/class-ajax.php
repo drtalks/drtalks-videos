@@ -23,7 +23,8 @@ class DrTalks_Ajax {
 		add_action( 'wp_ajax_drtalks_add_expert',         static function() { DrTalks_Debug::log_ajax( 'drtalks_add_expert' ); } );
 		add_action( 'wp_ajax_drtalks_remove_expert',      static function() { DrTalks_Debug::log_ajax( 'drtalks_remove_expert' ); } );
 		add_action( 'wp_ajax_drtalks_sync_expert_now',    static function() { DrTalks_Debug::log_ajax( 'drtalks_sync_expert_now' ); } );
-		add_action( 'wp_ajax_drtalks_get_sync_status',    static function() { DrTalks_Debug::log_ajax( 'drtalks_get_sync_status' ); } );
+		add_action( 'wp_ajax_drtalks_get_sync_status',        static function() { DrTalks_Debug::log_ajax( 'drtalks_get_sync_status' ); } );
+		add_action( 'wp_ajax_drtalks_global_sync_status',     static function() { DrTalks_Debug::log_ajax( 'drtalks_global_sync_status' ); } );
 		add_action( 'wp_ajax_drtalks_hide_video',         static function() { DrTalks_Debug::log_ajax( 'drtalks_hide_video' ); } );
 		add_action( 'wp_ajax_drtalks_unhide_video',       static function() { DrTalks_Debug::log_ajax( 'drtalks_unhide_video' ); } );
 		add_action( 'wp_ajax_drtalks_get_orphans',        static function() { DrTalks_Debug::log_ajax( 'drtalks_get_orphans' ); } );
@@ -42,7 +43,8 @@ class DrTalks_Ajax {
 		add_action( 'wp_ajax_drtalks_add_expert',       [ __CLASS__, 'add_expert' ] );
 		add_action( 'wp_ajax_drtalks_remove_expert',    [ __CLASS__, 'remove_expert' ] );
 		add_action( 'wp_ajax_drtalks_sync_expert_now',  [ __CLASS__, 'sync_expert_now' ] );
-		add_action( 'wp_ajax_drtalks_get_sync_status',  [ __CLASS__, 'get_sync_status' ] );
+		add_action( 'wp_ajax_drtalks_get_sync_status',        [ __CLASS__, 'get_sync_status' ] );
+		add_action( 'wp_ajax_drtalks_global_sync_status',     [ __CLASS__, 'global_sync_status' ] );
 		add_action( 'wp_ajax_drtalks_hide_video',       [ __CLASS__, 'hide_video' ] );
 		add_action( 'wp_ajax_drtalks_unhide_video',     [ __CLASS__, 'unhide_video' ] );
 		add_action( 'wp_ajax_drtalks_get_orphans',      [ __CLASS__, 'get_orphans' ] );
@@ -200,6 +202,9 @@ class DrTalks_Ajax {
 	public static function save_settings(): void {
 		self::verify();
 
+		$show_watch_button = ! empty( $_POST['show_watch_button'] );
+		update_option( 'drtalks_show_watch_button', $show_watch_button ? 1 : 0 );
+
 		$archive_enabled = ! empty( $_POST['archive_enabled'] );
 		$archive_slug    = sanitize_title( $_POST['archive_slug'] ?? 'videos' ) ?: 'videos';
 
@@ -215,10 +220,7 @@ class DrTalks_Ajax {
 			$old = get_option( 'drtalks_sync_schedule', 'daily' );
 			if ( $old !== $sync_schedule ) {
 				update_option( 'drtalks_sync_schedule', $sync_schedule );
-				wp_clear_scheduled_hook( 'drtalks_sync_cron' );
-				if ( $sync_schedule !== 'manual' ) {
-					wp_schedule_event( time(), $sync_schedule, 'drtalks_sync_cron' );
-				}
+				DrTalks_Scheduler::reschedule_recurring();
 			}
 		}
 
@@ -237,7 +239,6 @@ class DrTalks_Ajax {
 		self::verify();
 
 		$slug = sanitize_title( $_POST['slug'] ?? '' );
-		error_log( '[DrTalks add_video] raw slug from POST: ' . ( $_POST['slug'] ?? '(empty)' ) . ' → sanitized: ' . $slug );
 		if ( ! $slug ) {
 			wp_send_json_error( 'slug is required', 400 );
 		}
@@ -285,13 +286,11 @@ class DrTalks_Ajax {
 		// Create or update CPT post.
 		$sync   = new DrTalks_Sync();
 		$result = $sync->sync_video( $slug );
-		error_log( '[DrTalks add_video] sync_video("' . $slug . '") returned: ' . ( is_wp_error( $result ) ? 'WP_Error: ' . $result->get_error_message() : 'post_id=' . $result ) );
 		if ( is_wp_error( $result ) ) {
 			wp_send_json_error( $result->get_error_message() );
 		}
 
 		$post = get_post( $result );
-		error_log( '[DrTalks add_video] get_post(' . $result . '): ' . ( $post ? 'found status=' . $post->post_status : 'NULL' ) );
 		if ( ! $post ) {
 			wp_send_json_error( 'Video post could not be created for slug: ' . $slug );
 		}
@@ -299,24 +298,16 @@ class DrTalks_Ajax {
 		// Add to selected list AFTER confirming post exists.
 		if ( ! in_array( $slug, $selected, true ) ) {
 			$selected[] = $slug;
-			$saved = update_option( 'drtalks_selected_videos', wp_json_encode( $selected ), false );
-			error_log( '[DrTalks add_video] update_option drtalks_selected_videos result: ' . ( $saved ? 'true' : 'false (may mean value unchanged)' ) );
-		} else {
-			error_log( '[DrTalks add_video] slug already in selected list, skipping option update.' );
+			update_option( 'drtalks_selected_videos', wp_json_encode( $selected ), false );
 		}
 
-		error_log( '[DrTalks add_video] selected list is now: ' . wp_json_encode( $selected ) );
-
-		$card = self::format_video_card( $post );
-		error_log( '[DrTalks add_video] format_video_card result: ' . wp_json_encode( $card ) );
-		wp_send_json_success( $card );
+		wp_send_json_success( self::format_video_card( $post ) );
 	}
 
 	public static function remove_video(): void {
 		self::verify();
 
 		$slug = sanitize_title( $_POST['slug'] ?? '' );
-		error_log( '[DrTalks remove_video] called for slug: ' . $slug );
 		if ( ! $slug ) {
 			wp_send_json_error( 'slug is required', 400 );
 		}
@@ -328,7 +319,6 @@ class DrTalks_Ajax {
 		}
 		$selected = array_values( array_filter( $selected, fn( $s ) => $s !== $slug ) );
 		update_option( 'drtalks_selected_videos', wp_json_encode( $selected ), false );
-		error_log( '[DrTalks remove_video] selected list after removal: ' . wp_json_encode( $selected ) );
 
 		// Delete CPT post if it exists (safe: if also an expert video it will be re-synced by cron).
 		$post = self::get_cpt_post_by_slug( $slug );
@@ -340,11 +330,9 @@ class DrTalks_Ajax {
 	}
 
 	public static function add_expert(): void {
-		error_log( '[DrTalks add_expert] handler reached. POST=' . wp_json_encode( $_POST ) );
 		self::verify();
 
 		$expert_slug = sanitize_title( $_POST['expert_slug'] ?? '' );
-		error_log( '[DrTalks add_expert] nonce passed. raw=' . ( $_POST['expert_slug'] ?? '(missing)' ) . ' sanitized=' . $expert_slug );
 		if ( ! $expert_slug ) {
 			wp_send_json_error( 'expert_slug is required', 400 );
 		}
@@ -424,10 +412,9 @@ class DrTalks_Ajax {
 			$sync_status = 'error';
 			DrTalks_Debug::error( "add_expert sync error for $expert_slug", $sync_result );
 		} elseif ( $video_count > $processed ) {
-			// Always true for experts with >1 video — cron handles the remainder.
+			// More videos remain — Action Scheduler picks up where we left off in 10-video chunks.
 			$sync_status = 'partial';
-			wp_schedule_single_event( time() + 5, 'drtalks_sync_single_expert', [ $expert_slug ] );
-			spawn_cron();
+			DrTalks_Scheduler::queue_sync_expert( $expert_slug, $processed );
 		} else {
 			$sync_status = 'done';
 		}
@@ -473,14 +460,27 @@ class DrTalks_Ajax {
 		self::verify();
 
 		$expert_slug = sanitize_title( $_POST['expert_slug'] ?? '' );
-		error_log( '[DrTalks remove_expert] called. raw=' . ( $_POST['expert_slug'] ?? '(missing)' ) . ' sanitized=' . $expert_slug );
 		if ( ! $expert_slug ) {
 			wp_send_json_error( 'expert_slug is required', 400 );
 		}
 
-		// Cancel any pending cron sync immediately — prevents new posts being created
-		// after we've deleted them.
-		wp_clear_scheduled_hook( 'drtalks_sync_single_expert', [ $expert_slug ] );
+		// Cancel all pending Action Scheduler batches for this expert.
+		// We iterate pending actions so we only cancel this expert's chunks,
+		// not other experts that may be queued at the same time.
+		if ( function_exists( 'as_get_scheduled_actions' ) ) {
+			$pending = as_get_scheduled_actions( [
+				'hook'     => DrTalks_Scheduler::HOOK_SYNC_EXPERT,
+				'group'    => DrTalks_Scheduler::GROUP,
+				'status'   => 'pending',
+				'per_page' => -1,
+			] );
+			foreach ( $pending as $action ) {
+				$args = $action->get_args();
+				if ( ! empty( $args[0] ) && sanitize_title( $args[0] ) === $expert_slug ) {
+					as_unschedule_action( DrTalks_Scheduler::HOOK_SYNC_EXPERT, $args, DrTalks_Scheduler::GROUP );
+				}
+			}
+		}
 
 		// Remove from expert slugs list.
 		$slugs = json_decode( get_option( 'drtalks_expert_slugs', '[]' ), true );
@@ -545,7 +545,6 @@ class DrTalks_Ajax {
 		delete_transient( 'drtalks_sync_status_' . $expert_slug );
 		self::delete_expert_meta( $expert_slug );
 
-		error_log( '[DrTalks remove_expert] done. expert_slug=' . $expert_slug . ' deleted_count=' . $deleted_count . ' remaining_experts=' . wp_json_encode( $slugs ) );
 		wp_send_json_success( [
 			'slug'          => $expert_slug,
 			'deleted_count' => $deleted_count,
@@ -557,45 +556,17 @@ class DrTalks_Ajax {
 	// -----------------------------------------------------------------------
 
 	/**
-	 * Returns all drtalks_video post IDs/slugs/titles that are not tracked by
-	 * any active expert or in drtalks_selected_videos.
+	 * Returns orphan posts with id/slug/title for display in the debug page.
+	 * Detection logic lives in DrTalks_Scheduler::get_orphan_post_ids().
 	 */
 	private static function get_orphan_posts(): array {
-		$selected = json_decode( get_option( 'drtalks_selected_videos', '[]' ), true );
-		if ( ! is_array( $selected ) ) {
-			$selected = [];
-		}
-
-		$meta_all      = json_decode( get_option( 'drtalks_experts_meta', '{}' ), true );
-		$tracked_slugs = $selected;
-		if ( is_array( $meta_all ) ) {
-			foreach ( $meta_all as $expert_data ) {
-				$slugs = $expert_data['video_slugs'] ?? [];
-				if ( is_array( $slugs ) ) {
-					$tracked_slugs = array_merge( $tracked_slugs, $slugs );
-				}
-			}
-		}
-		$tracked_slugs = array_values( array_unique( array_filter( $tracked_slugs ) ) );
-
-		// Fetch ALL drtalks_video posts.
-		$all_posts = get_posts( [
-			'post_type'      => 'drtalks_video',
-			'post_status'    => [ 'publish', 'trash' ],
-			'posts_per_page' => -1,
-			'fields'         => 'ids',
-		] );
-
 		$orphans = [];
-		foreach ( $all_posts as $post_id ) {
-			$video_slug = get_post_meta( $post_id, '_drtalks_video_slug', true );
-			if ( empty( $video_slug ) || ! in_array( $video_slug, $tracked_slugs, true ) ) {
-				$orphans[] = [
-					'id'    => $post_id,
-					'slug'  => $video_slug ?: '(no slug)',
-					'title' => get_the_title( $post_id ),
-				];
-			}
+		foreach ( DrTalks_Scheduler::get_orphan_post_ids() as $post_id ) {
+			$orphans[] = [
+				'id'    => $post_id,
+				'slug'  => get_post_meta( $post_id, '_drtalks_video_slug', true ) ?: '(no slug)',
+				'title' => get_the_title( $post_id ),
+			];
 		}
 		return $orphans;
 	}
@@ -606,24 +577,20 @@ class DrTalks_Ajax {
 		wp_send_json_success( [ 'orphans' => $orphans, 'count' => count( $orphans ) ] );
 	}
 
+	/**
+	 * Schedules an immediate Action Scheduler job to delete orphans.
+	 * Does NOT delete synchronously.
+	 */
 	public static function delete_orphans(): void {
 		self::verify();
-		$orphans = self::get_orphan_posts();
-		$deleted = 0;
-		foreach ( $orphans as $o ) {
-			wp_delete_post( (int) $o['id'], true );
-			$deleted++;
-		}
-		error_log( '[DrTalks delete_orphans] permanently deleted ' . $deleted . ' orphaned posts.' );
-		wp_send_json_success( [ 'deleted' => $deleted ] );
+		DrTalks_Scheduler::queue_cleanup_orphans();
+		wp_send_json_success( [ 'scheduled' => true, 'message' => 'Orphan cleanup has been queued and will run shortly.' ] );
 	}
 
 	public static function sync_expert_now(): void {
-		error_log( '[DrTalks sync_expert_now] handler reached. POST=' . wp_json_encode( $_POST ) );
 		self::verify();
 
 		$expert_slug = sanitize_title( $_POST['expert_slug'] ?? '' );
-		error_log( '[DrTalks sync_expert_now] nonce passed. expert_slug=' . $expert_slug );
 		if ( ! $expert_slug ) {
 			wp_send_json_error( 'expert_slug is required', 400 );
 		}
@@ -631,7 +598,6 @@ class DrTalks_Ajax {
 		set_time_limit( 120 );
 		$sync   = new DrTalks_Sync();
 		$result = $sync->sync_expert( $expert_slug, 0, true ); // 0 = no limit
-		error_log( '[DrTalks sync_expert_now] sync_expert result: ' . wp_json_encode( $result ) );
 
 		if ( $result['error'] ) {
 			set_transient( 'drtalks_sync_status_' . $expert_slug, [ 'status' => 'error', 'error' => $result['error'] ], HOUR_IN_SECONDS );
@@ -687,6 +653,11 @@ class DrTalks_Ajax {
 		}
 
 		wp_send_json_success( array_merge( [ 'slug' => $expert_slug ], $status ) );
+	}
+
+	public static function global_sync_status(): void {
+		self::verify();
+		wp_send_json_success( DrTalks_Scheduler::get_global_sync_status() );
 	}
 
 	public static function hide_video(): void {
@@ -789,22 +760,10 @@ class DrTalks_Ajax {
 
 	private static function format_video_card( ?WP_Post $post ): array {
 		if ( ! $post ) {
-			error_log( '[DrTalks format_video_card] called with null post!' );
+			DrTalks_Debug::error( 'format_video_card called with null post' );
 			return [];
 		}
-		$slug        = get_post_meta( $post->ID, '_drtalks_video_slug', true );
-		$permalink   = get_permalink( $post->ID );
-		$post_status = get_post_status( $post->ID );
-		$post_type   = get_post_type( $post->ID );
-
-		error_log( '[DrTalks format_video_card] post_id=' . $post->ID
-			. ' slug=' . $slug
-			. ' status=' . $post_status
-			. ' type=' . $post_type
-			. ' permalink=' . ( $permalink ?: '(false/empty)' )
-			. ' permalink_structure=' . ( get_option( 'permalink_structure' ) ?: '(plain/empty)' )
-			. ' cpt_public=' . ( get_post_type_object( 'drtalks_video' ) ? var_export( get_post_type_object( 'drtalks_video' )->public, true ) : 'CPT not found' )
-		);
+		$slug = get_post_meta( $post->ID, '_drtalks_video_slug', true );
 
 		return [
 			'slug'          => $slug,
@@ -812,58 +771,12 @@ class DrTalks_Ajax {
 			'thumbnail_url' => get_post_meta( $post->ID, '_drtalks_thumbnail', true ),
 			'expert_slug'   => get_post_meta( $post->ID, '_drtalks_expert_slug', true ),
 			'expert_name'   => get_post_meta( $post->ID, '_drtalks_expert_name', true ),
-			'wp_post_url'   => $permalink ?: '',
+			'wp_post_url'   => get_permalink( $post->ID ) ?: '',
 			'drtalks_url'   => 'https://drtalks.com/videos/' . rawurlencode( $slug ),
 			'synced'        => true,
 		];
 	}
 }
 
-// Hook for async single-expert sync triggered by drtalks_add_expert.
-// Runs a full sync (no cap) since this is in the background.
-add_action( 'drtalks_sync_single_expert', function ( string $expert_slug ) {
-	// Bail if the expert was removed before cron got to run.
-	$active_slugs = json_decode( get_option( 'drtalks_expert_slugs', '[]' ), true );
-	if ( ! is_array( $active_slugs ) || ! in_array( $expert_slug, $active_slugs, true ) ) {
-		return;
-	}
-
-	$sync   = new DrTalks_Sync();
-	$result = $sync->sync_expert( $expert_slug, 0, true );
-
-	$status = $result['error']
-		? [ 'status' => 'error', 'error' => $result['error'] ]
-		: [ 'status' => 'done', 'created' => $result['created'], 'updated' => $result['updated'], 'skipped' => $result['skipped'] ];
-
-	// Include synced_count in the transient so the polling UI can update the card count.
-	$status['synced_count'] = 0;
-	set_transient( 'drtalks_sync_status_' . $expert_slug, $status, HOUR_IN_SECONDS );
-
-	// Update synced_count using the expert's video_slugs list.
-	$meta_all_cron = json_decode( get_option( 'drtalks_experts_meta', '{}' ), true );
-	if ( ! is_array( $meta_all_cron ) ) { $meta_all_cron = []; }
-	$video_slugs_cron = ( $meta_all_cron[ $expert_slug ] ?? [] )['video_slugs'] ?? [];
-	if ( ! empty( $video_slugs_cron ) ) {
-		$synced_count = (int) ( new WP_Query( [
-			'post_type'      => 'drtalks_video',
-			'post_status'    => 'publish',
-			'posts_per_page' => -1,
-			'fields'         => 'ids',
-			'meta_query'     => [
-				[
-					'key'     => '_drtalks_video_slug',
-					'value'   => $video_slugs_cron,
-					'compare' => 'IN',
-				],
-			],
-		] ) )->found_posts;
-	} else {
-		$synced_count = 0;
-	}
-	$meta_all_cron[ $expert_slug ] = array_merge( $meta_all_cron[ $expert_slug ] ?? [], [ 'synced_count' => $synced_count ] );
-	update_option( 'drtalks_experts_meta', wp_json_encode( $meta_all_cron ), false );
-
-	// Update the transient with the final synced_count so the poller gets it.
-	$status['synced_count'] = $synced_count;
-	set_transient( 'drtalks_sync_status_' . $expert_slug, $status, HOUR_IN_SECONDS );
-} );
+// Background expert syncs run via Action Scheduler (DrTalks_Scheduler::run_sync_expert)
+// in 10-video chunks. No WP-Cron is used by this plugin.

@@ -16,8 +16,6 @@ if ( ! $slug ) {
 	return;
 }
 
-error_log( '[DrTalks block render.php] slug=' . $slug . ' attrs=' . wp_json_encode( $attributes ) );
-
 $options = [
 	'show_title'       => (bool) ( $attributes['showTitle']       ?? true ),
 	'show_description' => (bool) ( $attributes['showDescription'] ?? true ),

@@ -22,6 +22,33 @@ class DrTalks_Admin_Page {
 			'dashicons-video-alt3',
 			25
 		);
+
+		// Rename the auto-generated first submenu (which would say "DrTalks Videos")
+		// to "Settings", then add the docs submenu below it.
+		add_submenu_page(
+			'drtalks-videos',
+			'DrTalks Videos — Settings',
+			'Settings',
+			'manage_options',
+			'drtalks-videos',
+			[ __CLASS__, 'render_page' ]
+		);
+
+		add_submenu_page(
+			'drtalks-videos',
+			'DrTalks Videos — Documentation',
+			'Documentation',
+			'manage_options',
+			'drtalks-videos-docs',
+			[ __CLASS__, 'render_docs_page' ]
+		);
+	}
+
+	public static function render_docs_page(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+		require DRTALKS_VIDEOS_DIR . 'admin/views/docs-page.php';
 	}
 
 	public static function init(): void {
@@ -44,6 +71,17 @@ class DrTalks_Admin_Page {
 	}
 
 	public static function enqueue_scripts( string $hook ): void {
+		// Docs page gets its own minimal stylesheet, no JS, no localize data.
+		if ( $hook === 'drtalks-videos_page_drtalks-videos-docs' ) {
+			wp_enqueue_style(
+				'drtalks-admin-docs',
+				DRTALKS_VIDEOS_URL . 'admin/css/docs-page.css',
+				[],
+				DRTALKS_VIDEOS_VERSION
+			);
+			return;
+		}
+
 		if ( $hook !== 'toplevel_page_drtalks-videos' ) {
 			return;
 		}
@@ -67,16 +105,10 @@ class DrTalks_Admin_Page {
 		$expert_slugs    = drtalks_get_expert_data();
 		$expert_videos   = drtalks_get_all_expert_videos_data();
 
-		error_log( '[DrTalks enqueue_scripts] archiveEnabled=' . var_export( (bool) get_option( 'drtalks_archive_enabled', false ), true )
-			. ' selectedVideos count=' . count( $selected_videos )
-			. ' expertSlugs count=' . count( $expert_slugs )
-			. ' expertVideos count=' . count( $expert_videos )
-		);
-		error_log( '[DrTalks enqueue_scripts] selectedVideos payload: ' . wp_json_encode( $selected_videos ) );
-
 		wp_localize_script( 'drtalks-admin-page', 'drtalksAdmin', [
 			'ajaxUrl'             => admin_url( 'admin-ajax.php' ),
 			'nonce'               => wp_create_nonce( 'drtalks_admin_nonce' ),
+			'showWatchButton'     => (bool) get_option( 'drtalks_show_watch_button', true ),
 			'archiveEnabled'      => (bool) get_option( 'drtalks_archive_enabled', false ),
 			'archiveSlug'         => get_option( 'drtalks_archive_slug', 'videos' ),
 			'syncSchedule'        => get_option( 'drtalks_sync_schedule', 'daily' ),
@@ -104,14 +136,8 @@ class DrTalks_Admin_Page {
  * @return array[]
  */
 function drtalks_get_selected_video_data(): array {
-	$raw_option = get_option( 'drtalks_selected_videos', '[]' );
-	error_log( '[DrTalks get_selected_video_data] raw option value: ' . $raw_option );
-
-	$slugs = json_decode( $raw_option, true );
-	error_log( '[DrTalks get_selected_video_data] decoded slugs: ' . wp_json_encode( $slugs ) . ' (json_last_error=' . json_last_error() . ')' );
-
+	$slugs = json_decode( get_option( 'drtalks_selected_videos', '[]' ), true );
 	if ( ! is_array( $slugs ) || empty( $slugs ) ) {
-		error_log( '[DrTalks get_selected_video_data] slugs is empty/invalid — returning []' );
 		return [];
 	}
 
@@ -128,41 +154,19 @@ function drtalks_get_selected_video_data(): array {
 		],
 	] );
 
-	error_log( '[DrTalks get_selected_video_data] CPT query found ' . count( $posts ) . ' posts for slugs: ' . implode( ', ', $slugs ) );
-
-	// If no posts found, do a broader check to diagnose why.
-	if ( empty( $posts ) ) {
-		$all_posts = get_posts( [
-			'post_type'      => 'drtalks_video',
-			'post_status'    => 'any',
-			'posts_per_page' => 10,
-		] );
-		error_log( '[DrTalks get_selected_video_data] DIAGNOSTIC: total drtalks_video posts (any status): ' . count( $all_posts ) );
-		foreach ( $all_posts as $p ) {
-			error_log( '[DrTalks get_selected_video_data]   post_id=' . $p->ID
-				. ' status=' . $p->post_status
-				. ' slug_meta=' . get_post_meta( $p->ID, '_drtalks_video_slug', true )
-			);
-		}
-	}
-
 	$result = [];
 	foreach ( $posts as $post ) {
-		$slug      = get_post_meta( $post->ID, '_drtalks_video_slug', true );
-		$permalink = get_permalink( $post->ID );
-		error_log( '[DrTalks get_selected_video_data] building card for post_id=' . $post->ID . ' slug=' . $slug . ' permalink=' . ( $permalink ?: '(false)' ) );
+		$slug = get_post_meta( $post->ID, '_drtalks_video_slug', true );
 		$result[] = [
 			'slug'          => $slug,
 			'title'         => get_the_title( $post->ID ),
 			'thumbnail_url' => get_post_meta( $post->ID, '_drtalks_thumbnail', true ),
-			'wp_post_url'   => $permalink ?: '',
+			'wp_post_url'   => get_permalink( $post->ID ) ?: '',
 			'drtalks_url'   => 'https://drtalks.com/videos/' . rawurlencode( $slug ),
 			'expert_slug'   => get_post_meta( $post->ID, '_drtalks_expert_slug', true ),
 			'expert_name'   => get_post_meta( $post->ID, '_drtalks_expert_name', true ),
 		];
 	}
-
-	error_log( '[DrTalks get_selected_video_data] returning ' . count( $result ) . ' cards' );
 	return $result;
 }
 

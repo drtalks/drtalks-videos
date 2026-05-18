@@ -74,8 +74,6 @@ class DrTalks_Block {
 			return '<p>' . esc_html__( 'Select a DrTalks video.', 'drtalks-videos' ) . '</p>';
 		}
 
-		error_log( '[DrTalks DrTalks_Block::render] slug=' . $slug . ' attrs=' . wp_json_encode( $attributes ) );
-
 		$options = [
 			'show_video'       => (bool) ( $attributes['showVideo']       ?? true ),
 			'show_title'       => (bool) ( $attributes['showTitle']       ?? true ),

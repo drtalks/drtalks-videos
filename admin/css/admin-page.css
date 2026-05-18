@@ -187,6 +187,13 @@
 	padding-bottom: 8px;
 }
 
+.drtalks-section-count {
+	color: #8c8f94;
+	font-weight: 400;
+	font-size: 0.9em;
+	margin-left: 4px;
+}
+
 .drtalks-col input[type="search"] {
 	width: 100%;
 	box-sizing: border-box;
@@ -432,6 +439,47 @@
 	margin: 0;
 }
 
+/* ---- Global sync status bar ------------------------------------------------ */
+
+.drtalks-global-sync-status {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	margin-top: 10px;
+	font-size: 13px;
+	color: #555;
+	min-height: 22px;
+}
+
+.drtalks-sync-status-dot {
+	display: inline-block;
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: #bbb;
+	flex-shrink: 0;
+	transition: background .3s;
+}
+
+.drtalks-global-sync-status.is-running .drtalks-sync-status-dot {
+	background: #f0ad00;
+	animation: drtalks-pulse 1.2s infinite;
+}
+
+.drtalks-global-sync-status.is-scheduled .drtalks-sync-status-dot {
+	background: #2271b1;
+}
+
+.drtalks-global-sync-status.is-idle .drtalks-sync-status-dot,
+.drtalks-global-sync-status.is-manual .drtalks-sync-status-dot {
+	background: #aaa;
+}
+
+@keyframes drtalks-pulse {
+	0%, 100% { opacity: 1; }
+	50%       { opacity: .35; }
+}
+
 /* ---- Template style card selector ----------------------------------------- */
 
 .drtalks-template-style-cards {
@@ -535,20 +583,56 @@
 	width: 55%;
 }
 
-/* Video layout preview: two-column YouTube style */
-.drtalks-style-preview-video {
+/* ── Blog layout preview: single column ── */
+.drtalks-preview--blog {
 	flex-direction: column;
 }
 
-.drtalks-style-preview-video .drtalks-preview-hero {
+.drtalks-preview-title-row {
+	padding: 5px 8px 3px;
+}
+
+/* Shorter player so title + content + author all fit in 120px */
+.drtalks-preview-player--blog {
+	aspect-ratio: unset;
+	height: 38px;
+	margin: 0 8px 3px;
+}
+
+.drtalks-preview-author-row {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	padding: 3px 8px 4px;
+}
+
+.drtalks-preview-avatar {
+	width: 12px;
+	height: 12px;
+	border-radius: 50%;
+	background: #c8c8c8;
+	flex-shrink: 0;
+}
+
+.drtalks-preview-author-lines {
+	flex: 1;
+	padding: 0;
+}
+
+/* ── Video Page layout preview: two-column ── */
+.drtalks-preview--video {
+	flex-direction: column;
+}
+
+.drtalks-preview-twocol {
 	display: flex;
 	gap: 4px;
-	padding: 4px 6px 4px;
+	padding: 4px 6px;
 	flex: 1;
 	overflow: hidden;
 }
 
-/* Left column mock */
+/* Left column */
 .drtalks-preview-col-main {
 	flex: 1;
 	display: flex;
@@ -556,11 +640,10 @@
 	gap: 3px;
 }
 
-.drtalks-style-preview-video .drtalks-preview-player {
-	margin: 0;
-	background: #222;
-	aspect-ratio: 16/9;
-	height: auto;
+.drtalks-preview-player--video {
+	aspect-ratio: unset;
+	height: 42px;
+	margin: 0 0 2px;
 	border-radius: 1px;
 }
 
@@ -568,16 +651,16 @@
 	background: #bbb;
 }
 
-/* Right column mock */
+/* Right column / sidebar */
 .drtalks-preview-col-sidebar {
-	width: 30%;
-	background: #f0f0f0;
+	width: 32%;
+	background: #f3f3f3;
 	border-radius: 2px;
 	border: 1px solid #ddd;
 	display: flex;
 	flex-direction: column;
-	gap: 3px;
-	padding: 4px;
+	gap: 4px;
+	padding: 5px 4px;
 }
 
 .drtalks-preview-col-sidebar .drtalks-preview-line {
@@ -585,42 +668,3 @@
 	height: 4px;
 }
 
-/* Orphaned posts section */
-.drtalks-orphan-list {
-	border: 1px solid #ddd;
-	border-radius: 4px;
-	overflow: hidden;
-	max-height: 300px;
-	overflow-y: auto;
-}
-
-.drtalks-orphan-item {
-	display: flex;
-	align-items: center;
-	gap: 10px;
-	padding: 8px 12px;
-	border-bottom: 1px solid #f0f0f0;
-	font-size: 13px;
-}
-
-.drtalks-orphan-item:last-child {
-	border-bottom: none;
-}
-
-.drtalks-orphan-item:nth-child(odd) {
-	background: #fafafa;
-}
-
-.drtalks-orphan-title {
-	flex: 1;
-	min-width: 0;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-}
-
-.drtalks-orphan-slug {
-	color: #888;
-	font-size: 11px;
-	flex-shrink: 0;
-}

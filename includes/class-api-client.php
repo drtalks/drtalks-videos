@@ -98,8 +98,6 @@ class DrTalks_API_Client {
 	 * @return array|WP_Error
 	 */
 	private function get( string $url ) {
-		DrTalks_Debug::info( 'API request', [ 'url' => $url ] );
-
 		$start    = microtime( true );
 		$response = wp_remote_get( $url, [
 			'timeout' => 15,
@@ -109,6 +107,7 @@ class DrTalks_API_Client {
 		] );
 		$elapsed = microtime( true ) - $start;
 
+		// log_api() only writes for non-200 or WP_Error — successful calls are silent.
 		DrTalks_Debug::log_api( $url, $response, $elapsed );
 
 		if ( is_wp_error( $response ) ) {

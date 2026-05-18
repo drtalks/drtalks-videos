@@ -1,0 +1,154 @@
+/* DrTalks Videos — Documentation page styles */
+
+.drtalks-docs-wrap {
+	max-width: 1200px;
+}
+
+.drtalks-docs-layout {
+	display: grid;
+	grid-template-columns: 220px 1fr;
+	gap: 32px;
+	margin-top: 16px;
+}
+
+@media (max-width: 900px) {
+	.drtalks-docs-layout {
+		grid-template-columns: 1fr;
+	}
+}
+
+/* Sticky TOC ------------------------------------------------------------- */
+
+.drtalks-docs-toc {
+	position: sticky;
+	top: 46px; /* below the WP admin bar */
+	align-self: start;
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	padding: 16px;
+	font-size: 13px;
+	line-height: 1.6;
+	max-height: calc(100vh - 80px);
+	overflow-y: auto;
+}
+
+.drtalks-docs-toc strong {
+	display: block;
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+	color: #50575e;
+	margin-bottom: 8px;
+}
+
+.drtalks-docs-toc ul {
+	margin: 0;
+	padding-left: 0;
+	list-style: none;
+}
+
+.drtalks-docs-toc ul ul {
+	padding-left: 14px;
+	margin: 4px 0 8px;
+	font-size: 12px;
+}
+
+.drtalks-docs-toc a {
+	display: block;
+	padding: 3px 0;
+	text-decoration: none;
+	color: #2c3338;
+}
+
+.drtalks-docs-toc a:hover,
+.drtalks-docs-toc a:focus {
+	color: #2271b1;
+}
+
+/* Content --------------------------------------------------------------- */
+
+.drtalks-docs-content {
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	padding: 24px 32px;
+	font-size: 14px;
+	line-height: 1.6;
+	color: #2c3338;
+}
+
+.drtalks-docs-content h2 {
+	margin-top: 36px;
+	padding-top: 16px;
+	border-top: 1px solid #f0f0f1;
+	font-size: 20px;
+	font-weight: 600;
+}
+
+.drtalks-docs-content h2:first-child {
+	margin-top: 0;
+	padding-top: 0;
+	border-top: 0;
+}
+
+.drtalks-docs-content h3 {
+	margin-top: 24px;
+	font-size: 16px;
+	font-weight: 600;
+}
+
+.drtalks-docs-content p,
+.drtalks-docs-content ul,
+.drtalks-docs-content ol {
+	margin: 12px 0;
+}
+
+.drtalks-docs-content ul,
+.drtalks-docs-content ol {
+	padding-left: 24px;
+}
+
+.drtalks-docs-content code {
+	font-size: 13px;
+	background: #f6f7f7;
+	padding: 2px 6px;
+	border-radius: 3px;
+	border: 1px solid #e0e0e0;
+	color: #1d2327;
+}
+
+.drtalks-docs-content pre {
+	background: #1d2327;
+	color: #f0f0f1;
+	padding: 14px 18px;
+	border-radius: 4px;
+	overflow-x: auto;
+	font-size: 13px;
+	line-height: 1.5;
+}
+
+.drtalks-docs-content pre code {
+	background: transparent;
+	border: 0;
+	color: inherit;
+	padding: 0;
+	font-size: 13px;
+}
+
+/* Tables ---------------------------------------------------------------- */
+
+.drtalks-docs-table {
+	margin: 16px 0;
+}
+
+.drtalks-docs-table th,
+.drtalks-docs-table td {
+	font-size: 13px;
+	vertical-align: top;
+	padding: 8px 12px;
+}
+
+.drtalks-docs-table td code {
+	white-space: nowrap;
+}

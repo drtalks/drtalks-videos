@@ -3,11 +3,13 @@
  * Plugin Name:  DrTalks Videos
  * Plugin URI:   https://github.com/drtalks/drtalks-videos-plugin
  * Description:  Sync and embed DrTalks expert videos on any WordPress site.
- * Version:      1.0.0
+ * Version:      1.1.0
  * Author:       DrTalks
  * Author URI:   https://drtalks.com
  * License:      GPL-2.0-or-later
  * Text Domain:  drtalks-videos
+ * Requires at least: 6.4
+ * Requires PHP: 8.0
  *
  * @package DrTalksVideos
  */
@@ -16,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'DRTALKS_VIDEOS_VERSION', '1.0.0' );
+define( 'DRTALKS_VIDEOS_VERSION', '1.1.0' );
 define( 'DRTALKS_VIDEOS_FILE', __FILE__ );
 define( 'DRTALKS_VIDEOS_DIR', plugin_dir_path( __FILE__ ) );
 define( 'DRTALKS_VIDEOS_URL', plugin_dir_url( __FILE__ ) );
@@ -25,6 +27,10 @@ if ( ! defined( 'DRTALKS_API_URL' ) ) {
 	define( 'DRTALKS_API_URL', 'https://account.drtalks.com/wp-json/drtalks/v1' );
 }
 
+// Action Scheduler — must load before anything that calls as_* functions.
+// The library auto-picks the newest version across all plugins that bundle it.
+require_once DRTALKS_VIDEOS_DIR . 'libraries/action-scheduler/action-scheduler.php';
+
 // Debug logger must load first — other classes reference DrTalks_Debug::log().
 require_once DRTALKS_VIDEOS_DIR . 'includes/class-debug.php';
 require_once DRTALKS_VIDEOS_DIR . 'includes/functions.php';
@@ -32,6 +38,7 @@ require_once DRTALKS_VIDEOS_DIR . 'includes/class-post-type.php';
 require_once DRTALKS_VIDEOS_DIR . 'admin/class-admin-page.php';
 require_once DRTALKS_VIDEOS_DIR . 'includes/class-api-client.php';
 require_once DRTALKS_VIDEOS_DIR . 'includes/class-sync.php';
+require_once DRTALKS_VIDEOS_DIR . 'includes/class-scheduler.php';
 require_once DRTALKS_VIDEOS_DIR . 'includes/class-ajax.php';
 require_once DRTALKS_VIDEOS_DIR . 'includes/class-metabox.php';
 require_once DRTALKS_VIDEOS_DIR . 'includes/class-block.php';
@@ -44,13 +51,15 @@ register_uninstall_hook( __FILE__, 'drtalks_videos_uninstall' );
 function drtalks_videos_activate(): void {
 	DrTalks_Post_Type::register();
 	flush_rewrite_rules( false );
-	if ( ! wp_next_scheduled( 'drtalks_sync_cron' ) ) {
-		wp_schedule_event( time(), 'daily', 'drtalks_sync_cron' );
+	if ( class_exists( 'DrTalks_Scheduler' ) ) {
+		DrTalks_Scheduler::ensure_recurring_scheduled();
 	}
 }
 
 function drtalks_videos_deactivate(): void {
-	wp_clear_scheduled_hook( 'drtalks_sync_cron' );
+	if ( class_exists( 'DrTalks_Scheduler' ) ) {
+		DrTalks_Scheduler::unschedule_recurring();
+	}
 	flush_rewrite_rules( false );
 }
 
@@ -73,6 +82,7 @@ function drtalks_videos_uninstall(): void {
 
 	// Delete plugin options.
 	delete_option( 'drtalks_archive_slug' );
+	delete_option( 'drtalks_show_watch_button' );
 	delete_option( 'drtalks_archive_enabled' );
 	delete_option( 'drtalks_selected_videos' );
 	delete_option( 'drtalks_expert_slugs' );
@@ -83,19 +93,6 @@ function drtalks_videos_uninstall(): void {
 	// Legacy option from pre-rework single-expert design.
 	delete_option( 'drtalks_expert_slug' );
 }
-
-DrTalks_Debug::info( 'Plugin loaded', [ 'version' => DRTALKS_VIDEOS_VERSION, 'api_url' => DRTALKS_API_URL ] );
-
-// Register a 'weekly' cron recurrence — WordPress core only ships hourly/twicedaily/daily.
-add_filter( 'cron_schedules', function ( array $schedules ): array {
-	if ( ! isset( $schedules['weekly'] ) ) {
-		$schedules['weekly'] = [
-			'interval' => WEEK_IN_SECONDS,
-			'display'  => __( 'Once Weekly', 'drtalks-videos' ),
-		];
-	}
-	return $schedules;
-} );
 
 // Boot all classes.
 add_action( 'init', [ 'DrTalks_Post_Type', 'register' ] );
@@ -108,20 +105,10 @@ add_action( 'add_meta_boxes', [ 'DrTalks_Metabox', 'register' ] );
 add_action( 'init', [ 'DrTalks_Block', 'register' ] );
 DrTalks_Ajax::init();
 DrTalks_Debug::init_admin();
+DrTalks_Scheduler::init();
 
-add_action( 'drtalks_sync_cron', function () {
-	$slugs = json_decode( get_option( 'drtalks_expert_slugs', '[]' ), true );
-	if ( ! is_array( $slugs ) ) {
-		return;
-	}
-	$sync = new DrTalks_Sync();
-	foreach ( $slugs as $slug ) {
-		$slug = sanitize_title( $slug );
-		if ( $slug ) {
-			$sync->sync_expert( $slug, 0, true ); // 0 = no cap, full sync
-		}
-	}
-} );
+// Ensure the Action Scheduler recurring action is always registered.
+add_action( 'init', [ 'DrTalks_Scheduler', 'ensure_recurring_scheduled' ], 20 );
 
 add_action( 'admin_notices', function () {
 	$error = get_transient( 'drtalks_sync_error' );

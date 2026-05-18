@@ -17,6 +17,7 @@ $drtalks_section_hidden  = $drtalks_archive_enabled ? '' : ' style="display:none
 	<h1 class="drtalks-admin-title">
 		DrTalks Videos
 		<span id="drtalks-save-status" class="drtalks-save-status" style="opacity:0;"></span>
+		<a href="<?php echo esc_url( admin_url( 'admin.php?page=drtalks-videos-docs' ) ); ?>" class="page-title-action" style="margin-left:auto;">Documentation</a>
 	</h1>
 
 	<div class="drtalks-embed-instructions">
@@ -37,17 +38,25 @@ $drtalks_section_hidden  = $drtalks_archive_enabled ? '' : ' style="display:none
 	</div>
 
 	<!-- ============================================================
-	     Box 1: Video Archive + Page Style
+	     Box 1: Settings
 	     ============================================================ -->
 	<div class="drtalks-section" id="drtalks-section-archive">
-		<h2>Video Archive</h2>
-		<p class="description">Enable a public video archive page on your site. When ON, visitors can browse all your videos at a dedicated URL.</p>
+		<h2>Settings</h2>
 
 		<div class="drtalks-archive-toggle">
+			<label class="drtalks-toggle-label">
+				<input type="checkbox" id="drtalks-show-watch-button" <?php checked( get_option( 'drtalks_show_watch_button', 1 ) ); ?>>
+				<span>Show "Watch on DrTalks" button</span>
+			</label>
+			<p class="description" style="margin:4px 0 0 0;">When enabled, a link to the original video on DrTalks.com is shown on each video page.</p>
+		</div>
+
+		<div class="drtalks-archive-toggle" style="margin-top:14px;">
 			<label class="drtalks-toggle-label">
 				<input type="checkbox" id="drtalks-archive-enabled" <?php checked( get_option( 'drtalks_archive_enabled', false ) ); ?>>
 				<span>Enable Videos Archive</span>
 			</label>
+			<p class="description" style="margin:4px 0 0 0;">Enable a public video archive page on your site where visitors can browse all your videos.</p>
 		</div>
 
 		<div id="drtalks-archive-settings" class="drtalks-archive-settings"<?php echo $drtalks_section_hidden; ?>>
@@ -68,49 +77,59 @@ $drtalks_section_hidden  = $drtalks_archive_enabled ? '' : ' style="display:none
 
 			<div class="drtalks-template-style-cards">
 
-				<!-- Theme style -->
-				<label class="drtalks-style-card" data-style="theme">
-					<input type="radio" name="drtalks_template_style" value="theme">
-					<div class="drtalks-style-card-preview">
-						<div class="drtalks-preview-bar"></div>
-						<div class="drtalks-preview-lines" style="padding:6px 8px 4px;">
-							<div class="drtalks-preview-line drtalks-preview-line--title"></div>
-						</div>
-						<div class="drtalks-preview-player"></div>
-						<div class="drtalks-preview-lines">
-							<div class="drtalks-preview-line"></div>
+			<!-- Blog layout -->
+			<label class="drtalks-style-card" data-style="theme">
+				<input type="radio" name="drtalks_template_style" value="theme">
+				<div class="drtalks-style-card-preview drtalks-preview--blog">
+					<div class="drtalks-preview-bar"></div>
+					<div class="drtalks-preview-lines drtalks-preview-title-row">
+						<div class="drtalks-preview-line drtalks-preview-line--title"></div>
+					</div>
+					<div class="drtalks-preview-player drtalks-preview-player--blog"></div>
+					<div class="drtalks-preview-lines">
+						<div class="drtalks-preview-line"></div>
+						<div class="drtalks-preview-line drtalks-preview-line--short"></div>
+					</div>
+					<div class="drtalks-preview-author-row">
+						<div class="drtalks-preview-avatar"></div>
+						<div class="drtalks-preview-lines drtalks-preview-author-lines">
 							<div class="drtalks-preview-line drtalks-preview-line--short"></div>
 						</div>
-						<div class="drtalks-preview-bar drtalks-preview-bar--footer"></div>
 					</div>
-					<strong>Theme Layout</strong>
-					<span class="drtalks-style-card-desc">Uses your theme's header &amp; footer. Video below the title, content below.</span>
-				</label>
+					<div class="drtalks-preview-bar drtalks-preview-bar--footer"></div>
+				</div>
+				<strong>Blog Layout</strong>
+				<span class="drtalks-style-card-desc">Single column, blog-style. All video information flows top to bottom — title, player, description, transcript, author.</span>
+			</label>
 
-				<!-- Video / YouTube style -->
-				<label class="drtalks-style-card" data-style="video">
-					<input type="radio" name="drtalks_template_style" value="video">
-					<div class="drtalks-style-card-preview drtalks-style-preview-video">
-						<div class="drtalks-preview-bar"></div>
-						<div class="drtalks-style-preview-video drtalks-preview-hero">
-							<div class="drtalks-preview-col-main">
-								<div class="drtalks-preview-player"></div>
-								<div class="drtalks-preview-lines">
-									<div class="drtalks-preview-line drtalks-preview-line--title"></div>
-									<div class="drtalks-preview-line"></div>
-								</div>
-							</div>
-							<div class="drtalks-preview-col-sidebar">
-								<div class="drtalks-preview-line"></div>
+			<!-- Video Page / YouTube style -->
+			<label class="drtalks-style-card" data-style="video">
+				<input type="radio" name="drtalks_template_style" value="video">
+				<div class="drtalks-style-card-preview drtalks-preview--video">
+					<div class="drtalks-preview-bar"></div>
+					<div class="drtalks-preview-twocol">
+						<div class="drtalks-preview-col-main">
+							<div class="drtalks-preview-player drtalks-preview-player--video"></div>
+							<div class="drtalks-preview-lines">
+								<div class="drtalks-preview-line drtalks-preview-line--title"></div>
 								<div class="drtalks-preview-line"></div>
 								<div class="drtalks-preview-line drtalks-preview-line--short"></div>
 							</div>
 						</div>
-						<div class="drtalks-preview-bar drtalks-preview-bar--footer"></div>
+						<div class="drtalks-preview-col-sidebar">
+							<div class="drtalks-preview-line"></div>
+							<div class="drtalks-preview-line drtalks-preview-line--short"></div>
+							<div class="drtalks-preview-line"></div>
+							<div class="drtalks-preview-line"></div>
+							<div class="drtalks-preview-line drtalks-preview-line--short"></div>
+							<div class="drtalks-preview-line"></div>
+						</div>
 					</div>
-					<strong>Video Layout</strong>
-					<span class="drtalks-style-card-desc">Minimal full-width layout — video prominent, sidebar for related info.</span>
-				</label>
+					<div class="drtalks-preview-bar drtalks-preview-bar--footer"></div>
+				</div>
+				<strong>Video Page Layout</strong>
+				<span class="drtalks-style-card-desc">Two-column, YouTube-style. Player and main content on the left, transcript and related info in a sidebar on the right.</span>
+			</label>
 
 			</div>
 		</div>
@@ -141,7 +160,7 @@ $drtalks_section_hidden  = $drtalks_archive_enabled ? '' : ' style="display:none
 				</div>
 			</div>
 			<div class="drtalks-col drtalks-col-right">
-				<h3>Added Videos</h3>
+				<h3>Added Videos <span class="drtalks-section-count" id="drtalks-selected-count"></span></h3>
 				<div id="drtalks-selected-videos" class="drtalks-card-list">
 					<p class="drtalks-empty-state">No videos added yet. Search on the left to get started.</p>
 				</div>
@@ -173,6 +192,11 @@ $drtalks_section_hidden  = $drtalks_archive_enabled ? '' : ' style="display:none
 			<p class="description">New videos from your experts are fetched on this schedule.</p>
 		</div>
 
+		<div id="drtalks-global-sync-status" class="drtalks-global-sync-status">
+			<span class="drtalks-sync-status-dot"></span>
+			<span class="drtalks-sync-status-text">Loading sync status…</span>
+		</div>
+
 		<div class="drtalks-card-list drtalks-card-list--searchable">
 			<div class="drtalks-card-list-search">
 				<input type="search" id="drtalks-expert-search" class="regular-text" placeholder="Search experts by name…">
@@ -194,7 +218,7 @@ $drtalks_section_hidden  = $drtalks_archive_enabled ? '' : ' style="display:none
 					</div>
 				</div>
 				<div class="drtalks-col drtalks-col-right">
-					<h3>Auto-Synced Videos</h3>
+					<h3>Auto-Synced Videos <span class="drtalks-section-count" id="drtalks-expert-videos-count"></span></h3>
 					<div id="drtalks-expert-videos" class="drtalks-card-list">
 						<p class="drtalks-empty-state">Sync in progress… videos will appear here shortly.</p>
 					</div>
@@ -206,21 +230,6 @@ $drtalks_section_hidden  = $drtalks_archive_enabled ? '' : ' style="display:none
 
 	</div><!-- #drtalks-archive-content -->
 
-	<hr class="drtalks-section-divider">
-
-	<!-- ============================================================
-	     Box 4: Orphaned Posts
-	     ============================================================ -->
-	<div class="drtalks-section" id="drtalks-section-orphans">
-		<h2>Orphaned Video Posts</h2>
-		<p class="description">
-			These are <code>drtalks_video</code> database posts that are no longer tracked by any expert or individual video list.
-			They don't appear on your site but take up space. You can safely delete them.
-		</p>
-		<div id="drtalks-orphans-body">
-			<p class="drtalks-empty-state">Loading…</p>
-		</div>
-	</div>
 
 </div>
 
