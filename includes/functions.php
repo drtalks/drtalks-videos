@@ -461,6 +461,50 @@ function drtalks_render_block_video( string $slug, array $options = [] ): string
 }
 
 /**
+ * Render a single archive video card as HTML.
+ * Used by both the PHP loop and the AJAX search handler (server-side rendering
+ * keeps the markup consistent and avoids duplicating the template in JS).
+ *
+ * @param int $post_id
+ * @return string
+ */
+function drtalks_render_archive_card( int $post_id ): string {
+	$duration_secs = (int) get_post_meta( $post_id, '_drtalks_duration', true );
+	$thumbnail     = (string) get_post_meta( $post_id, '_drtalks_thumbnail', true );
+	$expert_name   = (string) get_post_meta( $post_id, '_drtalks_expert_name', true );
+	$duration      = drtalks_format_duration( $duration_secs );
+	$permalink     = (string) get_permalink( $post_id );
+	$title         = get_the_title( $post_id );
+
+	ob_start();
+	?>
+	<article class="drtalks-video-card">
+		<a href="<?php echo esc_url( $permalink ); ?>" class="drtalks-card-link">
+			<div class="drtalks-card-thumbnail">
+				<?php if ( $thumbnail ) : ?>
+				<img src="<?php echo esc_url( $thumbnail ); ?>"
+					alt="<?php echo esc_attr( $title ); ?>"
+					loading="lazy">
+				<?php else : ?>
+				<div class="drtalks-card-thumbnail-placeholder"></div>
+				<?php endif; ?>
+				<?php if ( $duration ) : ?>
+				<span class="drtalks-card-duration"><?php echo esc_html( $duration ); ?></span>
+				<?php endif; ?>
+			</div>
+			<div class="drtalks-card-body">
+				<h2 class="drtalks-card-title"><?php echo esc_html( $title ); ?></h2>
+				<?php if ( $expert_name ) : ?>
+				<p class="drtalks-card-expert"><?php echo esc_html( $expert_name ); ?></p>
+				<?php endif; ?>
+			</div>
+		</a>
+	</article>
+	<?php
+	return (string) ob_get_clean();
+}
+
+/**
  * Format seconds to MM:SS display string.
  */
 function drtalks_format_duration( int $seconds ): string {

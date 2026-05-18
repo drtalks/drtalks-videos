@@ -49,6 +49,10 @@ class DrTalks_Ajax {
 		add_action( 'wp_ajax_drtalks_unhide_video',     [ __CLASS__, 'unhide_video' ] );
 		add_action( 'wp_ajax_drtalks_get_orphans',      [ __CLASS__, 'get_orphans' ] );
 		add_action( 'wp_ajax_drtalks_delete_orphans',   [ __CLASS__, 'delete_orphans' ] );
+
+		// Frontend (public) search for the archive page.
+		add_action( 'wp_ajax_drtalks_archive_search',        [ __CLASS__, 'archive_search' ] );
+		add_action( 'wp_ajax_nopriv_drtalks_archive_search', [ __CLASS__, 'archive_search' ] );
 	}
 
 	// --- Security gate -------------------------------------------------------
@@ -775,6 +779,48 @@ class DrTalks_Ajax {
 			'drtalks_url'   => 'https://drtalks.com/videos/' . rawurlencode( $slug ),
 			'synced'        => true,
 		];
+	}
+
+	// --- Frontend archive search (public, no login required) -----------------
+
+	/**
+	 * Live search handler for the public archive page.
+	 * Returns rendered HTML card fragments so the client-side template stays
+	 * consistent with the server-side loop output.
+	 */
+	public static function archive_search(): void {
+		if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ?? '' ) ), 'drtalks_archive_search' ) ) {
+			wp_send_json_error( 'invalid_nonce', 403 );
+		}
+
+		$q = sanitize_text_field( wp_unslash( $_POST['q'] ?? '' ) );
+		if ( $q === '' ) {
+			wp_send_json_success( [ 'cards' => [], 'total' => 0 ] );
+		}
+
+		$allowed_slugs = DrTalks_Post_Type::get_allowed_video_slugs();
+		if ( empty( $allowed_slugs ) ) {
+			wp_send_json_success( [ 'cards' => [], 'total' => 0 ] );
+		}
+
+		$query = new WP_Query( [
+			'post_type'      => 'drtalks_video',
+			'post_status'    => 'publish',
+			'posts_per_page' => 48,
+			's'              => $q,
+			'meta_query'     => [ [
+				'key'     => '_drtalks_video_slug',
+				'value'   => $allowed_slugs,
+				'compare' => 'IN',
+			] ],
+		] );
+
+		$cards = [];
+		foreach ( $query->posts as $post ) {
+			$cards[] = drtalks_render_archive_card( (int) $post->ID );
+		}
+
+		wp_send_json_success( [ 'cards' => $cards, 'total' => $query->found_posts ] );
 	}
 }
 
