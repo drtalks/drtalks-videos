@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-$archive_slug   = get_option( 'drtalks_archive_slug', 'videos' );
+$archive_slug   = get_option( 'drtalks_archive_slug', 'podcast' );
 $expert_slug    = get_option( 'drtalks_expert_slug', '' );
 $sync_schedule  = get_option( 'drtalks_sync_schedule', 'daily' );
 $next_cron      = function_exists( 'as_next_scheduled_action' )

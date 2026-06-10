@@ -237,8 +237,8 @@ class DrTalks_Post_Type {
 	}
 
 	public static function register(): void {
-		$archive_enabled = (bool) get_option( 'drtalks_archive_enabled', false );
-		$archive_slug    = get_option( 'drtalks_archive_slug', 'videos' );
+		$archive_enabled = (bool) get_option( 'drtalks_archive_enabled', true );
+		$archive_slug    = get_option( 'drtalks_archive_slug', 'podcast' );
 
 		register_post_type( 'drtalks_video', [
 			'label'        => 'DrTalks Videos',

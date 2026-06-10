@@ -10,7 +10,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-$drtalks_archive_enabled = (bool) get_option( 'drtalks_archive_enabled', false );
+$drtalks_archive_enabled = (bool) get_option( 'drtalks_archive_enabled', true );
 $drtalks_section_hidden  = $drtalks_archive_enabled ? '' : ' style="display:none;"';
 ?>
 <div class="wrap drtalks-admin-wrap">
@@ -53,7 +53,7 @@ $drtalks_section_hidden  = $drtalks_archive_enabled ? '' : ' style="display:none
 
 		<div class="drtalks-archive-toggle" style="margin-top:14px;">
 			<label class="drtalks-toggle-label">
-				<input type="checkbox" id="drtalks-archive-enabled" <?php checked( get_option( 'drtalks_archive_enabled', false ) ); ?>>
+				<input type="checkbox" id="drtalks-archive-enabled" <?php checked( get_option( 'drtalks_archive_enabled', true ) ); ?>>
 				<span>Enable Videos Archive</span>
 			</label>
 			<p class="description" style="margin:4px 0 0 0;">Enable a public video archive page on your site where visitors can browse all your videos.</p>
@@ -64,7 +64,7 @@ $drtalks_section_hidden  = $drtalks_archive_enabled ? '' : ' style="display:none
 				<label for="drtalks-archive-slug"><strong>Archive URL slug</strong></label>
 				<div class="drtalks-slug-input-wrap">
 					<span class="drtalks-slug-prefix" id="drtalks-site-url-prefix"><?php echo esc_url( home_url( '/' ) ); ?></span>
-					<input type="text" id="drtalks-archive-slug" class="regular-text" value="<?php echo esc_attr( get_option( 'drtalks_archive_slug', 'videos' ) ); ?>">
+					<input type="text" id="drtalks-archive-slug" class="regular-text" value="<?php echo esc_attr( get_option( 'drtalks_archive_slug', 'podcast' ) ); ?>">
 					<span class="drtalks-slug-suffix">/</span>
 				</div>
 				<p class="description" id="drtalks-archive-url-preview"></p>

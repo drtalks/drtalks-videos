@@ -35,7 +35,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 					</ul>
 				</li>
 				<li><a href="#block">Gutenberg Block</a></li>
-				<li><a href="#theme">Theme Integration</a></li>
+				<li><a href="#theme">Theme Integration</a>
+					<ul>
+						<li><a href="#template-overrides">Template overrides</a></li>
+					</ul>
+				</li>
 				<li><a href="#troubleshooting">Troubleshooting</a></li>
 			</ul>
 		</nav>
@@ -142,6 +146,30 @@ echo do_shortcode( '[drtalks_expert_photo slug="' . esc_attr( $slug ) . '" class
 echo do_shortcode( '[drtalks_expert_name slug="' . esc_attr( $slug ) . '"]' );
 echo do_shortcode( '[drtalks_video_description slug="' . esc_attr( $slug ) . '"]' );
 ?&gt;</code></pre>
+
+			<h3 id="template-overrides">Template overrides</h3>
+			<p>Like WooCommerce, the plugin's templates can be overridden from your theme. Copy any file from the plugin's <code>templates/</code> folder into a <code>drtalks-videos/</code> folder inside your (child) theme, then edit your copy. Resolution order is <strong>child theme → parent theme → plugin default</strong>, so the plugin keeps working untouched until you provide an override.</p>
+			<p>Overridable files (relative to <code>yourtheme/drtalks-videos/</code>):</p>
+			<table class="widefat striped drtalks-docs-table">
+				<thead>
+					<tr>
+						<th>File</th>
+						<th>What it controls</th>
+						<th>Applies to</th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr><td><code>single-drtalks_video.php</code></td><td>Full single-video page wrapper</td><td>Classic (non-block) themes</td></tr>
+					<tr><td><code>archive-drtalks_video.php</code></td><td>Full archive page wrapper</td><td>Classic (non-block) themes</td></tr>
+					<tr><td><code>content-archive-card.php</code></td><td>One video card in the archive / search grid</td><td>Everywhere a card appears</td></tr>
+					<tr><td><code>content-single-theme.php</code></td><td>Single-video body, "theme" layout</td><td>Everywhere the single body renders</td></tr>
+					<tr><td><code>content-single-video.php</code></td><td>Single-video body, "video" layout</td><td>Everywhere the single body renders</td></tr>
+					<tr><td><code>partials/expert-bio.php</code></td><td>Expert bio block</td><td>Everywhere the bio renders</td></tr>
+				</tbody>
+			</table>
+			<p>The <code>content-*</code> and <code>partials/*</code> files are shared by the archive, single pages, the shortcode, the Gutenberg block, and AJAX search, so overriding one changes that markup wherever it appears. The two full <code>*-drtalks_video.php</code> templates only affect the classic-PHP rendering path.</p>
+			<p><strong>Block themes:</strong> you don't need these overrides. Edit the templates directly in <a href="<?php echo esc_url( admin_url( 'site-editor.php' ) ); ?>">Appearance → Editor (Site Editor)</a>, or place your own <code>templates/single-drtalks_video.html</code> / <code>templates/archive-drtalks_video.html</code> in your theme — WordPress uses those over the plugin's registered block templates automatically.</p>
+			<p>Advanced: the resolved path for any template can be filtered via <code>drtalks_locate_template</code> (<code>apply_filters( 'drtalks_locate_template', $template, $template_name )</code>).</p>
 
 			<h2 id="troubleshooting">Troubleshooting</h2>
 			<table class="widefat striped drtalks-docs-table">
