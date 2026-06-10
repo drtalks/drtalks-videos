@@ -131,6 +131,27 @@ echo do_shortcode( '[drtalks_video_description slug="' . esc_attr( $slug ) . '"]
 ?>
 ```
 
+### Template overrides
+
+Like WooCommerce, the plugin's templates can be overridden from your theme — copy any of the files from the plugin's `templates/` folder into a `drtalks-videos/` folder inside your (child) theme and edit your copy. Resolution order is: **child theme → parent theme → plugin default**, so the plugin keeps working untouched until you provide an override.
+
+Overridable files (relative to `yourtheme/drtalks-videos/`):
+
+| File | What it controls | Applies to |
+|---|---|---|
+| `single-drtalks_video.php` | Full single-video page wrapper | Classic (non-block) themes |
+| `archive-drtalks_video.php` | Full archive page wrapper | Classic (non-block) themes |
+| `content-archive-card.php` | One video card in the archive / search grid | Everywhere a card appears |
+| `content-single-theme.php` | Single-video body, "theme" layout | Everywhere the single body renders |
+| `content-single-video.php` | Single-video body, "video" layout | Everywhere the single body renders |
+| `partials/expert-bio.php` | Expert bio block | Everywhere the bio renders |
+
+The `content-*` and `partials/*` files are shared by the archive, single pages, the shortcode, the Gutenberg block, and AJAX search, so overriding one changes that markup wherever it appears. The two full `*-drtalks_video.php` templates only affect the classic-PHP rendering path.
+
+**Block themes:** you don't need these overrides. Edit the templates directly in **Appearance → Editor (Site Editor)**, or place your own `templates/single-drtalks_video.html` / `templates/archive-drtalks_video.html` in your theme — WordPress uses those over the plugin's registered block templates automatically.
+
+Advanced: the resolved path for any template can be filtered via `drtalks_locate_template` (`apply_filters( 'drtalks_locate_template', $template, $template_name )`).
+
 ---
 
 ## Troubleshooting

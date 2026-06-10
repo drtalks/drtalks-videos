@@ -34,6 +34,7 @@ require_once DRTALKS_VIDEOS_DIR . 'libraries/action-scheduler/action-scheduler.p
 // Debug logger must load first — other classes reference DrTalks_Debug::log().
 require_once DRTALKS_VIDEOS_DIR . 'includes/class-debug.php';
 require_once DRTALKS_VIDEOS_DIR . 'includes/functions.php';
+require_once DRTALKS_VIDEOS_DIR . 'includes/template-functions.php';
 require_once DRTALKS_VIDEOS_DIR . 'includes/class-post-type.php';
 require_once DRTALKS_VIDEOS_DIR . 'admin/class-admin-page.php';
 require_once DRTALKS_VIDEOS_DIR . 'includes/class-api-client.php';

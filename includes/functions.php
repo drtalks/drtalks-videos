@@ -191,59 +191,11 @@ function drtalks_get_video_meta( int $post_id ): array {
  * "Theme" layout — standard content flow with max-width body.
  */
 function drtalks_render_single_video_content_theme( int $post_id ): string {
-	$m          = drtalks_get_video_meta( $post_id );
-	$show_watch = (bool) get_option( 'drtalks_show_watch_button', true );
-	ob_start();
-	?>
-	<div class="drtalks-single-video drtalks-layout-theme">
-
-		<div class="drtalks-video-content">
-
-			<?php if ( $m['embed_url'] ) : ?>
-			<div class="drtalks-video-player">
-				<iframe
-					src="<?php echo esc_url( $m['embed_url'] ); ?>"
-					frameborder="0"
-					allow="autoplay; fullscreen; picture-in-picture"
-					allowfullscreen
-				></iframe>
-			</div>
-			<?php elseif ( $m['thumbnail'] ) : ?>
-			<img src="<?php echo esc_url( $m['thumbnail'] ); ?>" alt="<?php echo esc_attr( get_the_title( $post_id ) ); ?>" class="drtalks-video-thumbnail-fallback">
-			<?php endif; ?>
-
-		<?php if ( $show_watch && $m['drtalks_url'] ) : ?>
-		<div class="drtalks-watch-cta">
-			<a href="<?php echo esc_url( $m['drtalks_url'] ); ?>" class="drtalks-watch-link" target="_blank" rel="noopener noreferrer">Watch on DrTalks</a>
-		</div>
-		<?php endif; ?>
-
-		<h1 class="drtalks-video-title"><?php echo esc_html( get_the_title( $post_id ) ); ?></h1>
-
-		<?php if ( $m['description'] ) : ?>
-		<div class="drtalks-video-description">
-			<?php echo wp_kses( $m['description'], $m['allowed_html'] ); ?>
-		</div>
-		<?php endif; ?>
-
-		<?php if ( $m['transcript'] ) : ?>
-			<div class="drtalks-video-transcript">
-				<details>
-					<summary><?php esc_html_e( 'View Transcript', 'drtalks-videos' ); ?></summary>
-					<div class="drtalks-transcript-content">
-						<?php echo wp_kses( $m['transcript'], $m['allowed_html'] ); ?>
-					</div>
-				</details>
-			</div>
-			<?php endif; ?>
-
-			<?php drtalks_render_expert_bio( $m ); ?>
-
-		</div>
-
-	</div>
-	<?php
-	return ob_get_clean();
+	return drtalks_get_template_html( 'content-single-theme.php', [
+		'post_id'    => $post_id,
+		'm'          => drtalks_get_video_meta( $post_id ),
+		'show_watch' => (bool) get_option( 'drtalks_show_watch_button', true ),
+	] );
 }
 
 /**
@@ -252,99 +204,18 @@ function drtalks_render_single_video_content_theme( int $post_id ): string {
  *   Right: transcript sidebar
  */
 function drtalks_render_single_video_content_video( int $post_id ): string {
-	$m          = drtalks_get_video_meta( $post_id );
-	$show_watch = (bool) get_option( 'drtalks_show_watch_button', true );
-	ob_start();
-	?>
-	<div class="drtalks-single-video drtalks-layout-video">
-		<div class="drtalks-yt-wrap">
-
-			<div class="drtalks-yt-main">
-
-				<?php if ( $m['embed_url'] ) : ?>
-				<div class="drtalks-video-player">
-					<iframe
-						src="<?php echo esc_url( $m['embed_url'] ); ?>"
-						frameborder="0"
-						allow="autoplay; fullscreen; picture-in-picture"
-						allowfullscreen
-					></iframe>
-				</div>
-				<?php elseif ( $m['thumbnail'] ) : ?>
-				<div class="drtalks-player-outer">
-					<img src="<?php echo esc_url( $m['thumbnail'] ); ?>" alt="<?php echo esc_attr( get_the_title( $post_id ) ); ?>" class="drtalks-video-thumbnail-fallback">
-				</div>
-				<?php endif; ?>
-
-			<?php if ( $show_watch && $m['drtalks_url'] ) : ?>
-			<div class="drtalks-watch-cta">
-				<a href="<?php echo esc_url( $m['drtalks_url'] ); ?>" class="drtalks-watch-link" target="_blank" rel="noopener noreferrer">Watch on DrTalks</a>
-			</div>
-			<?php endif; ?>
-
-			<h1 class="drtalks-video-title"><?php echo esc_html( get_the_title( $post_id ) ); ?></h1>
-
-			<?php if ( $m['description'] ) : ?>
-			<div class="drtalks-video-description">
-				<?php echo wp_kses( $m['description'], $m['allowed_html'] ); ?>
-			</div>
-			<?php endif; ?>
-
-			<?php drtalks_render_expert_bio( $m ); ?>
-
-			</div>
-
-			<?php if ( $m['transcript'] ) : ?>
-			<aside class="drtalks-yt-sidebar">
-				<div class="drtalks-sidebar-transcript">
-					<h2 class="drtalks-sidebar-heading"><?php esc_html_e( 'Transcript', 'drtalks-videos' ); ?></h2>
-					<div class="drtalks-transcript-content">
-						<?php echo wp_kses( $m['transcript'], $m['allowed_html'] ); ?>
-					</div>
-				</div>
-			</aside>
-			<?php endif; ?>
-
-		</div>
-	</div>
-	<?php
-	return ob_get_clean();
+	return drtalks_get_template_html( 'content-single-video.php', [
+		'post_id'    => $post_id,
+		'm'          => drtalks_get_video_meta( $post_id ),
+		'show_watch' => (bool) get_option( 'drtalks_show_watch_button', true ),
+	] );
 }
 
 /**
  * Shared expert bio partial — used by both layout functions.
  */
 function drtalks_render_expert_bio( array $m ): void {
-	if ( ! $m['expert_name'] ) {
-		return;
-	}
-	?>
-	<div class="drtalks-expert-bio">
-		<h2 class="drtalks-expert-heading"><?php esc_html_e( 'About the Expert', 'drtalks-videos' ); ?></h2>
-		<div class="drtalks-expert-card">
-			<?php if ( $m['expert_photo'] ) : ?>
-			<img src="<?php echo esc_url( $m['expert_photo'] ); ?>" alt="<?php echo esc_attr( $m['expert_name'] ); ?>" class="drtalks-expert-photo">
-			<?php endif; ?>
-			<div class="drtalks-expert-info">
-				<p class="drtalks-expert-name"><?php echo esc_html( $m['expert_name'] ); ?></p>
-				<?php if ( $m['expert_title'] ) : ?>
-				<p class="drtalks-expert-title"><?php echo esc_html( $m['expert_title'] ); ?></p>
-				<?php endif; ?>
-				<?php if ( $m['expert_creds'] ) : ?>
-				<p class="drtalks-expert-credentials"><?php echo esc_html( $m['expert_creds'] ); ?></p>
-				<?php endif; ?>
-				<?php if ( $m['expert_bio'] ) : ?>
-				<div class="drtalks-expert-bio-text"><?php echo nl2br( esc_html( $m['expert_bio'] ) ); ?></div>
-				<?php endif; ?>
-				<?php if ( $m['expert_slug'] ) : ?>
-				<a href="<?php echo esc_url( 'https://drtalks.com/experts/' . rawurlencode( $m['expert_slug'] ) ); ?>" class="drtalks-expert-profile-link" target="_blank" rel="noopener noreferrer">
-					<?php printf( esc_html__( 'More from %s on DrTalks', 'drtalks-videos' ), esc_html( $m['expert_name'] ) ); ?>
-				</a>
-				<?php endif; ?>
-			</div>
-		</div>
-	</div>
-	<?php
+	drtalks_get_template( 'partials/expert-bio.php', [ 'm' => $m ] );
 }
 
 /**
@@ -470,38 +341,15 @@ function drtalks_render_block_video( string $slug, array $options = [] ): string
  */
 function drtalks_render_archive_card( int $post_id ): string {
 	$duration_secs = (int) get_post_meta( $post_id, '_drtalks_duration', true );
-	$thumbnail     = (string) get_post_meta( $post_id, '_drtalks_thumbnail', true );
-	$expert_name   = (string) get_post_meta( $post_id, '_drtalks_expert_name', true );
-	$duration      = drtalks_format_duration( $duration_secs );
-	$permalink     = (string) get_permalink( $post_id );
-	$title         = get_the_title( $post_id );
 
-	ob_start();
-	?>
-	<article class="drtalks-video-card">
-		<a href="<?php echo esc_url( $permalink ); ?>" class="drtalks-card-link">
-			<div class="drtalks-card-thumbnail">
-				<?php if ( $thumbnail ) : ?>
-				<img src="<?php echo esc_url( $thumbnail ); ?>"
-					alt="<?php echo esc_attr( $title ); ?>"
-					loading="lazy">
-				<?php else : ?>
-				<div class="drtalks-card-thumbnail-placeholder"></div>
-				<?php endif; ?>
-				<?php if ( $duration ) : ?>
-				<span class="drtalks-card-duration"><?php echo esc_html( $duration ); ?></span>
-				<?php endif; ?>
-			</div>
-			<div class="drtalks-card-body">
-				<h2 class="drtalks-card-title"><?php echo esc_html( $title ); ?></h2>
-				<?php if ( $expert_name ) : ?>
-				<p class="drtalks-card-expert"><?php echo esc_html( $expert_name ); ?></p>
-				<?php endif; ?>
-			</div>
-		</a>
-	</article>
-	<?php
-	return (string) ob_get_clean();
+	return drtalks_get_template_html( 'content-archive-card.php', [
+		'post_id'     => $post_id,
+		'title'       => get_the_title( $post_id ),
+		'permalink'   => (string) get_permalink( $post_id ),
+		'thumbnail'   => (string) get_post_meta( $post_id, '_drtalks_thumbnail', true ),
+		'duration'    => drtalks_format_duration( $duration_secs ),
+		'expert_name' => (string) get_post_meta( $post_id, '_drtalks_expert_name', true ),
+	] );
 }
 
 /**

@@ -147,9 +147,11 @@ class DrTalks_Post_Type {
 
 	public static function template_include_single( string $template ): string {
 		if ( is_singular( 'drtalks_video' ) ) {
-			$plugin_tpl = DRTALKS_VIDEOS_DIR . 'templates/single-drtalks_video.php';
-			if ( file_exists( $plugin_tpl ) ) {
-				return $plugin_tpl;
+			// Theme override: yourtheme/drtalks-videos/single-drtalks_video.php,
+			// falling back to the plugin's bundled template.
+			$located = drtalks_locate_template( 'single-drtalks_video.php' );
+			if ( file_exists( $located ) ) {
+				return $located;
 			}
 		}
 		return $template;
@@ -157,9 +159,11 @@ class DrTalks_Post_Type {
 
 	public static function template_include_archive( string $template ): string {
 		if ( is_post_type_archive( 'drtalks_video' ) ) {
-			$plugin_tpl = DRTALKS_VIDEOS_DIR . 'templates/archive-drtalks_video.php';
-			if ( file_exists( $plugin_tpl ) ) {
-				return $plugin_tpl;
+			// Theme override: yourtheme/drtalks-videos/archive-drtalks_video.php,
+			// falling back to the plugin's bundled template.
+			$located = drtalks_locate_template( 'archive-drtalks_video.php' );
+			if ( file_exists( $located ) ) {
+				return $located;
 			}
 		}
 		return $template;
