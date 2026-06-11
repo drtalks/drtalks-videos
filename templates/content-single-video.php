@@ -53,6 +53,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 		<?php drtalks_render_expert_bio( $m ); ?>
 
+		<?php drtalks_render_guests( $m ); ?>
+
 		</div>
 
 		<?php if ( $m['transcript'] ) : ?>

@@ -80,6 +80,7 @@ class DrTalks_Block {
 			'show_description' => (bool) ( $attributes['showDescription'] ?? true ),
 			'show_transcript'  => (bool) ( $attributes['showTranscript']  ?? true ),
 			'show_author'      => (bool) ( $attributes['showAuthor']      ?? true ),
+			'show_guests'      => (bool) ( $attributes['showGuests']      ?? true ),
 		];
 
 		return drtalks_render_block_video( $slug, $options );

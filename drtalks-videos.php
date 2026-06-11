@@ -44,6 +44,7 @@ require_once DRTALKS_VIDEOS_DIR . 'includes/class-ajax.php';
 require_once DRTALKS_VIDEOS_DIR . 'includes/class-metabox.php';
 require_once DRTALKS_VIDEOS_DIR . 'includes/class-block.php';
 require_once DRTALKS_VIDEOS_DIR . 'includes/class-shortcode.php';
+require_once DRTALKS_VIDEOS_DIR . 'includes/class-seo.php';
 
 register_activation_hook( __FILE__, 'drtalks_videos_activate' );
 register_deactivation_hook( __FILE__, 'drtalks_videos_deactivate' );
@@ -100,6 +101,7 @@ add_action( 'init', [ 'DrTalks_Post_Type', 'register' ] );
 add_action( 'init', [ 'DrTalks_Post_Type', 'init_templates' ] );
 add_action( 'pre_get_posts', [ 'DrTalks_Post_Type', 'filter_archive_query' ] );
 add_action( 'init', [ 'DrTalks_Shortcode', 'init' ] );
+DrTalks_SEO::init();
 add_action( 'admin_menu', [ 'DrTalks_Admin_Page', 'add_menu' ] );
 add_action( 'admin_init', [ 'DrTalks_Admin_Page', 'init' ] );
 add_action( 'add_meta_boxes', [ 'DrTalks_Metabox', 'register' ] );

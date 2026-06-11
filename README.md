@@ -131,6 +131,169 @@ echo do_shortcode( '[drtalks_video_description slug="' . esc_attr( $slug ) . '"]
 ?>
 ```
 
+### Custom queries
+
+Each added video is a custom post type post (`drtalks_video`), so you can query them with a standard `WP_Query` and surface a grid, slider, or "latest videos" list anywhere on your site — not just on the plugin's archive page.
+
+Two helpers make this clean (both are loaded only when the plugin is active, so guard with `function_exists()` / `class_exists()` if your code can run independently):
+
+| Helper | Returns |
+|---|---|
+| `DrTalks_Post_Type::get_allowed_video_slugs()` | `string[]` of video slugs that should be **publicly visible** — selected videos + active-expert videos, minus hidden ones. This is the same gate the plugin's own archive uses. |
+| `drtalks_get_video_meta( int $post_id )` | An associative array of all the metadata for one video (see the field table below). |
+
+> **Visibility caveat:** a bare `WP_Query` on `drtalks_video` returns **every** synced post — including videos an admin explicitly hid and orphans left behind by old syncs. To match what the archive shows, filter by the allowed slugs as below.
+
+```php
+<?php
+// Guard in case the plugin is deactivated.
+if ( ! class_exists( 'DrTalks_Post_Type' ) ) {
+	return;
+}
+
+$allowed = DrTalks_Post_Type::get_allowed_video_slugs();
+
+if ( ! empty( $allowed ) ) {
+	$videos = new WP_Query( [
+		'post_type'      => 'drtalks_video',
+		'post_status'    => 'publish',
+		'posts_per_page' => 12,
+		'orderby'        => 'date',
+		'order'          => 'DESC',
+		'meta_query'     => [
+			[
+				'key'     => '_drtalks_video_slug',
+				'value'   => $allowed,
+				'compare' => 'IN',
+			],
+		],
+	] );
+
+	if ( $videos->have_posts() ) {
+		echo '<div class="drtalks-grid">';
+		while ( $videos->have_posts() ) {
+			$videos->the_post();
+			// Reuse the plugin's archive card markup (player thumbnail, title,
+			// duration, expert) — keeps your grid consistent with the archive:
+			echo drtalks_render_archive_card( get_the_ID() );
+		}
+		echo '</div>';
+		wp_reset_postdata();
+	}
+}
+```
+
+> Omit the `meta_query` only if you genuinely want every post (e.g. an internal admin report). For anything public-facing, keep it.
+
+#### Available metadata
+
+The post type only supports `title` — everything else lives in post meta. Get the whole set at once with `drtalks_get_video_meta( $post_id )`:
+
+| Array key | Source meta key | Contents |
+|---|---|---|
+| `video_slug` | `_drtalks_video_slug` | The DrTalks video slug (the unique identifier) |
+| `embed_url` | `_drtalks_embed_url` | Player iframe `src` URL |
+| `thumbnail` | `_drtalks_thumbnail` | Thumbnail image URL |
+| `description` | `_drtalks_description` | Video description (HTML) |
+| `transcript` | `_drtalks_transcript` | Full transcript (HTML) |
+| `expert_name` | `_drtalks_expert_name` | Expert's name |
+| `expert_slug` | `_drtalks_expert_slug` | Expert's slug |
+| `expert_title` | `_drtalks_expert_title` | Expert's professional title |
+| `expert_creds` | `_drtalks_expert_credentials` | Expert's credentials |
+| `expert_photo` | `_drtalks_expert_photo` | Expert photo URL |
+| `expert_bio` | `_drtalks_expert_bio` | Expert bio (HTML) |
+| `drtalks_url` | *(derived)* | Canonical `https://drtalks.com/videos/{slug}` URL |
+| `allowed_html` | *(derived)* | `wp_kses()` whitelist for safely echoing the HTML fields |
+
+A few fields are **not** in that helper and must be read directly:
+
+| Meta key | Contents | Tip |
+|---|---|---|
+| `_drtalks_duration` | Runtime in **seconds** (int) | Format with `drtalks_format_duration( $secs )` → `MM:SS` |
+| `_drtalks_synced_at` | Unix timestamp of the last sync (int) | — |
+
+#### Outputting every field
+
+Inside the loop, with `$id = get_the_ID();`:
+
+```php
+<?php
+$id   = get_the_ID();
+$meta = drtalks_get_video_meta( $id );
+?>
+<article class="drtalks-video">
+
+	<!-- Title (post title, not a meta field) -->
+	<h2><?php echo esc_html( get_the_title( $id ) ); ?></h2>
+
+	<!-- Player iframe -->
+	<?php if ( $meta['embed_url'] ) : ?>
+		<div class="drtalks-player">
+			<iframe src="<?php echo esc_url( $meta['embed_url'] ); ?>"
+			        loading="lazy" allowfullscreen></iframe>
+		</div>
+	<?php endif; ?>
+
+	<!-- Thumbnail (e.g. for a poster / fallback) -->
+	<?php if ( $meta['thumbnail'] ) : ?>
+		<img src="<?php echo esc_url( $meta['thumbnail'] ); ?>"
+		     alt="<?php echo esc_attr( get_the_title( $id ) ); ?>">
+	<?php endif; ?>
+
+	<!-- Duration (raw meta, formatted) -->
+	<?php $secs = (int) get_post_meta( $id, '_drtalks_duration', true ); ?>
+	<?php if ( $secs > 0 ) : ?>
+		<span class="drtalks-duration"><?php echo esc_html( drtalks_format_duration( $secs ) ); ?></span>
+	<?php endif; ?>
+
+	<!-- Description (HTML — sanitize with the provided whitelist) -->
+	<?php if ( $meta['description'] ) : ?>
+		<div class="drtalks-description">
+			<?php echo wp_kses( $meta['description'], $meta['allowed_html'] ); ?>
+		</div>
+	<?php endif; ?>
+
+	<!-- Transcript (HTML) -->
+	<?php if ( $meta['transcript'] ) : ?>
+		<details class="drtalks-transcript">
+			<summary>Transcript</summary>
+			<?php echo wp_kses( $meta['transcript'], $meta['allowed_html'] ); ?>
+		</details>
+	<?php endif; ?>
+
+	<!-- Expert block -->
+	<div class="drtalks-expert">
+		<?php if ( $meta['expert_photo'] ) : ?>
+			<img class="drtalks-expert-photo"
+			     src="<?php echo esc_url( $meta['expert_photo'] ); ?>"
+			     alt="<?php echo esc_attr( $meta['expert_name'] ); ?>">
+		<?php endif; ?>
+		<p class="drtalks-expert-name"><?php echo esc_html( $meta['expert_name'] ); ?></p>
+		<p class="drtalks-expert-title"><?php echo esc_html( $meta['expert_title'] ); ?></p>
+		<p class="drtalks-expert-creds"><?php echo esc_html( $meta['expert_creds'] ); ?></p>
+		<?php if ( $meta['expert_bio'] ) : ?>
+			<div class="drtalks-expert-bio">
+				<?php echo wp_kses( $meta['expert_bio'], $meta['allowed_html'] ); ?>
+			</div>
+		<?php endif; ?>
+	</div>
+
+	<!-- Link back to DrTalks -->
+	<?php if ( $meta['drtalks_url'] ) : ?>
+		<a class="drtalks-watch" href="<?php echo esc_url( $meta['drtalks_url'] ); ?>"
+		   target="_blank" rel="noopener">Watch on DrTalks</a>
+	<?php endif; ?>
+
+	<!-- Link to the video's own page on this site -->
+	<a href="<?php echo esc_url( get_permalink( $id ) ); ?>">Read more</a>
+
+</article>
+```
+
+**Escaping rules:** plain-text fields (names, titles, URLs) go through `esc_html()` / `esc_url()`; the HTML fields (`description`, `transcript`, `expert_bio`) should go through `wp_kses( …, $meta['allowed_html'] )` — never echo them raw.
+
+If you'd rather not hand-build markup, you can mix in the [atomic shortcodes](#atomic-shortcodes) using `$meta['video_slug']`, or just call `drtalks_render_archive_card( $id )` (shown above) to reuse the archive's card layout — which also picks up any `content-archive-card.php` template override you've made.
+
 ### Template overrides
 
 Like WooCommerce, the plugin's templates can be overridden from your theme — copy any of the files from the plugin's `templates/` folder into a `drtalks-videos/` folder inside your (child) theme and edit your copy. Resolution order is: **child theme → parent theme → plugin default**, so the plugin keeps working untouched until you provide an override.

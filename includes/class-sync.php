@@ -284,6 +284,7 @@ class DrTalks_Sync {
 			'_drtalks_description',
 			'_drtalks_transcript',
 			'_drtalks_duration',
+			'_drtalks_published_at',
 			'_drtalks_synced_at',
 			'_drtalks_expert_slug',
 			'_drtalks_expert_name',
@@ -291,6 +292,7 @@ class DrTalks_Sync {
 			'_drtalks_expert_bio',
 			'_drtalks_expert_credentials',
 			'_drtalks_expert_title',
+			'_drtalks_guests',
 		];
 
 		foreach ( $meta_keys as $key ) {

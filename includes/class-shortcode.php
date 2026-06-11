@@ -24,6 +24,7 @@ class DrTalks_Shortcode {
 		add_shortcode( 'drtalks_expert_photo',      [ __CLASS__, 'render_expert_photo' ] );
 		add_shortcode( 'drtalks_expert_title',      [ __CLASS__, 'render_expert_title' ] );
 		add_shortcode( 'drtalks_expert_bio',        [ __CLASS__, 'render_expert_bio' ] );
+		add_shortcode( 'drtalks_guests',            [ __CLASS__, 'render_guests' ] );
 
 		// Register TinyMCE plugin + toolbar button.
 		add_filter( 'mce_buttons', [ __CLASS__, 'add_tinymce_button' ] );
@@ -40,6 +41,7 @@ class DrTalks_Shortcode {
 				'description' => '1',
 				'transcript'  => '1',
 				'author'      => '1',
+				'guests'      => '1',
 			],
 			$atts,
 			'drtalks_video'
@@ -56,6 +58,7 @@ class DrTalks_Shortcode {
 			'show_description' => self::truthy( $atts['description'] ),
 			'show_transcript'  => self::truthy( $atts['transcript'] ),
 			'show_author'      => self::truthy( $atts['author'] ),
+			'show_guests'      => self::truthy( $atts['guests'] ),
 		];
 
 		return drtalks_render_block_video( $slug, $options );
@@ -221,6 +224,28 @@ class DrTalks_Shortcode {
 
 		self::enqueue_style();
 		return '<div class="drtalks-expert-bio-text">' . nl2br( esc_html( $bio ) ) . '</div>';
+	}
+
+	/**
+	 * Render the full guests section (one card per guest). Outputs nothing when
+	 * the video has no guests.
+	 */
+	public static function render_guests( array $atts ): string {
+		$atts = shortcode_atts( [ 'slug' => '' ], $atts, 'drtalks_guests' );
+		$post = self::get_post( $atts['slug'] );
+		if ( ! $post ) {
+			return '';
+		}
+
+		$m = drtalks_get_video_meta( $post->ID );
+		if ( empty( $m['guests'] ) ) {
+			return '';
+		}
+
+		self::enqueue_style();
+		ob_start();
+		drtalks_render_guests( $m );
+		return (string) ob_get_clean();
 	}
 
 	// --- Helpers --------------------------------------------------------------

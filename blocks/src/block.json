@@ -13,7 +13,8 @@
     "showTitle":       { "type": "boolean", "default": true },
     "showDescription": { "type": "boolean", "default": true },
     "showTranscript":  { "type": "boolean", "default": true },
-    "showAuthor":      { "type": "boolean", "default": true }
+    "showAuthor":      { "type": "boolean", "default": true },
+    "showGuests":      { "type": "boolean", "default": true }
   },
   "render": "file:./render.php",
   "textdomain": "drtalks-videos"

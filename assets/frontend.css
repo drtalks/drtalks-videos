@@ -354,6 +354,11 @@
     border-top: 2px solid #e0e0e0;
 }
 
+/* Guest bios section */
+.drtalks-guest-bios {
+    margin-top: 40px;
+}
+
 .drtalks-expert-heading {
     font-size: 0.8rem;
     font-weight: 700;

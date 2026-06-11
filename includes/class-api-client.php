@@ -149,7 +149,26 @@ class DrTalks_API_Client {
 			'a'      => [ 'href' => [], 'title' => [] ],
 		];
 
-		$expert = is_array( $v['expert'] ) ? $v['expert'] : [];
+		$expert = is_array( $v['expert'] ?? null ) ? $v['expert'] : [];
+
+		// Guests come back as a list (a video can have more than one). Sanitize each
+		// guest the same way the host/expert is sanitized and store as array meta.
+		$guests = [];
+		if ( ! empty( $v['guests'] ) && is_array( $v['guests'] ) ) {
+			foreach ( $v['guests'] as $g ) {
+				if ( ! is_array( $g ) || empty( $g['name'] ) ) {
+					continue;
+				}
+				$guests[] = [
+					'slug'        => sanitize_title( $g['slug'] ?? '' ),
+					'name'        => sanitize_text_field( $g['name'] ?? '' ),
+					'photo_url'   => esc_url_raw( $g['photo_url'] ?? '' ),
+					'bio'         => sanitize_textarea_field( $g['bio'] ?? '' ),
+					'credentials' => sanitize_text_field( $g['credentials'] ?? '' ),
+					'title'       => sanitize_text_field( $g['professional_title'] ?? '' ),
+				];
+			}
+		}
 
 		return [
 			'_drtalks_video_slug'       => sanitize_title( $v['slug'] ?? '' ),
@@ -158,6 +177,7 @@ class DrTalks_API_Client {
 			'_drtalks_description'      => wp_kses_post( $v['description'] ?? '' ),
 			'_drtalks_transcript'       => wp_kses( $v['transcript'] ?? '', $allowed_transcript_tags ),
 			'_drtalks_duration'         => absint( $v['duration'] ?? 0 ),
+			'_drtalks_published_at'     => sanitize_text_field( $v['published_at'] ?? '' ),
 			'_drtalks_synced_at'        => absint( time() ),
 			'_drtalks_expert_slug'      => sanitize_title( $expert['slug'] ?? '' ),
 			'_drtalks_expert_name'      => sanitize_text_field( $expert['name'] ?? '' ),
@@ -165,6 +185,7 @@ class DrTalks_API_Client {
 			'_drtalks_expert_bio'       => sanitize_textarea_field( $expert['bio'] ?? '' ),
 			'_drtalks_expert_credentials' => sanitize_text_field( $expert['credentials'] ?? '' ),
 			'_drtalks_expert_title'     => sanitize_text_field( $expert['professional_title'] ?? '' ),
+			'_drtalks_guests'           => $guests,
 			'_title'                    => sanitize_text_field( $v['title'] ?? '' ),
 			'_short_description'        => sanitize_text_field( $v['short_description'] ?? '' ),
 		];

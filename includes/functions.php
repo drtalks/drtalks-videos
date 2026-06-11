@@ -167,12 +167,17 @@ function drtalks_get_video_meta( int $post_id ): array {
 		'thumbnail'    => get_post_meta( $post_id, '_drtalks_thumbnail', true ),
 		'description'  => get_post_meta( $post_id, '_drtalks_description', true ),
 		'transcript'   => get_post_meta( $post_id, '_drtalks_transcript', true ),
+		'published_at' => get_post_meta( $post_id, '_drtalks_published_at', true ),
 		'expert_name'  => get_post_meta( $post_id, '_drtalks_expert_name', true ),
 		'expert_slug'  => get_post_meta( $post_id, '_drtalks_expert_slug', true ),
 		'expert_title' => get_post_meta( $post_id, '_drtalks_expert_title', true ),
 		'expert_creds' => get_post_meta( $post_id, '_drtalks_expert_credentials', true ),
 		'expert_photo' => get_post_meta( $post_id, '_drtalks_expert_photo', true ),
 		'expert_bio'   => get_post_meta( $post_id, '_drtalks_expert_bio', true ),
+		'guests'       => ( function () use ( $post_id ) {
+			$g = get_post_meta( $post_id, '_drtalks_guests', true );
+			return is_array( $g ) ? $g : [];
+		} )(),
 		'drtalks_url'  => $video_slug ? 'https://drtalks.com/videos/' . rawurlencode( $video_slug ) : '',
 		'allowed_html' => [
 			'p'      => [],
@@ -219,10 +224,21 @@ function drtalks_render_expert_bio( array $m ): void {
 }
 
 /**
+ * Guest bios partial — renders one card per guest. Used by both layout functions
+ * and the block. Renders nothing when the video has no guests.
+ */
+function drtalks_render_guests( array $m ): void {
+	if ( empty( $m['guests'] ) || ! is_array( $m['guests'] ) ) {
+		return;
+	}
+	drtalks_get_template( 'partials/guests.php', [ 'm' => $m ] );
+}
+
+/**
  * Render a video embed for use inside a Gutenberg block, with per-section toggles.
  *
  * Options (all bool, default true):
- *   show_title, show_description, show_transcript, show_author
+ *   show_title, show_description, show_transcript, show_author, show_guests
  */
 function drtalks_render_block_video( string $slug, array $options = [] ): string {
 	$show_video       = $options['show_video']       ?? true;
@@ -230,6 +246,7 @@ function drtalks_render_block_video( string $slug, array $options = [] ): string
 	$show_description = $options['show_description'] ?? true;
 	$show_transcript  = $options['show_transcript']  ?? true;
 	$show_author      = $options['show_author']      ?? true;
+	$show_guests      = $options['show_guests']      ?? true;
 
 	// Find the CPT post.
 	$posts = get_posts( [
@@ -322,6 +339,10 @@ function drtalks_render_block_video( string $slug, array $options = [] ): string
 
 			<?php if ( $show_author && ! empty( $m['expert_name'] ) ) : ?>
 				<?php drtalks_render_expert_bio( $m ); ?>
+			<?php endif; ?>
+
+			<?php if ( $show_guests && ! empty( $m['guests'] ) ) : ?>
+				<?php drtalks_render_guests( $m ); ?>
 			<?php endif; ?>
 
 		</div>
