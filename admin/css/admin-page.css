@@ -331,6 +331,13 @@
 
 .drtalks-card-actions {
 	flex-shrink: 0;
+	display: flex;
+	flex-direction: row;
+	gap: 6px;
+}
+
+.drtalks-card-actions .button {
+	white-space: nowrap;
 }
 
 .drtalks-hidden-card {
@@ -379,8 +386,8 @@
 	background: #f6f7f7;
 	border: 1px solid #c3c4c7;
 	border-radius: 4px;
-	min-width: 260px;
-	max-width: 340px;
+	min-width: 420px;
+	max-width: 640px;
 }
 
 .drtalks-expert-photo,

@@ -23,6 +23,7 @@ class DrTalks_Ajax {
 		add_action( 'wp_ajax_drtalks_add_expert',         static function() { DrTalks_Debug::log_ajax( 'drtalks_add_expert' ); } );
 		add_action( 'wp_ajax_drtalks_remove_expert',      static function() { DrTalks_Debug::log_ajax( 'drtalks_remove_expert' ); } );
 		add_action( 'wp_ajax_drtalks_sync_expert_now',    static function() { DrTalks_Debug::log_ajax( 'drtalks_sync_expert_now' ); } );
+		add_action( 'wp_ajax_drtalks_fetch_missing_videos', static function() { DrTalks_Debug::log_ajax( 'drtalks_fetch_missing_videos' ); } );
 		add_action( 'wp_ajax_drtalks_get_sync_status',        static function() { DrTalks_Debug::log_ajax( 'drtalks_get_sync_status' ); } );
 		add_action( 'wp_ajax_drtalks_global_sync_status',     static function() { DrTalks_Debug::log_ajax( 'drtalks_global_sync_status' ); } );
 		add_action( 'wp_ajax_drtalks_hide_video',         static function() { DrTalks_Debug::log_ajax( 'drtalks_hide_video' ); } );
@@ -43,6 +44,7 @@ class DrTalks_Ajax {
 		add_action( 'wp_ajax_drtalks_add_expert',       [ __CLASS__, 'add_expert' ] );
 		add_action( 'wp_ajax_drtalks_remove_expert',    [ __CLASS__, 'remove_expert' ] );
 		add_action( 'wp_ajax_drtalks_sync_expert_now',  [ __CLASS__, 'sync_expert_now' ] );
+		add_action( 'wp_ajax_drtalks_fetch_missing_videos', [ __CLASS__, 'fetch_missing_videos' ] );
 		add_action( 'wp_ajax_drtalks_get_sync_status',        [ __CLASS__, 'get_sync_status' ] );
 		add_action( 'wp_ajax_drtalks_global_sync_status',     [ __CLASS__, 'global_sync_status' ] );
 		add_action( 'wp_ajax_drtalks_hide_video',       [ __CLASS__, 'hide_video' ] );
@@ -599,48 +601,39 @@ class DrTalks_Ajax {
 			wp_send_json_error( 'expert_slug is required', 400 );
 		}
 
-		set_time_limit( 120 );
-		$sync   = new DrTalks_Sync();
-		$result = $sync->sync_expert( $expert_slug, 0, true ); // 0 = no limit
+		// Run as a background batch (Action Scheduler) so large experts don't time out.
+		// update_existing = true → re-fetch + overwrite existing posts AND create any
+		// missing ones, in 10-video chunks. The UI polls drtalks_get_sync_status.
+		set_transient( 'drtalks_sync_status_' . $expert_slug, [ 'status' => 'running' ], HOUR_IN_SECONDS );
+		DrTalks_Scheduler::queue_sync_expert( $expert_slug, 0, true );
 
-		if ( $result['error'] ) {
-			set_transient( 'drtalks_sync_status_' . $expert_slug, [ 'status' => 'error', 'error' => $result['error'] ], HOUR_IN_SECONDS );
-			wp_send_json_error( $result );
+		wp_send_json_success( [
+			'slug'        => $expert_slug,
+			'sync_status' => 'running',
+		] );
+	}
+
+	/**
+	 * "Fetch Missing Videos" — import any of the expert's DrTalks videos that
+	 * aren't on the site yet. Runs as a background batch (Action Scheduler),
+	 * insert-only: existing posts are left untouched, so it's the cheap fix for
+	 * an "X of Y" gap. The UI polls drtalks_get_sync_status for progress.
+	 */
+	public static function fetch_missing_videos(): void {
+		self::verify();
+
+		$expert_slug = sanitize_title( $_POST['expert_slug'] ?? '' );
+		if ( ! $expert_slug ) {
+			wp_send_json_error( 'expert_slug is required', 400 );
 		}
 
-		// Update synced count using the expert's video_slugs list (accurate for shared videos).
-		$meta_all_refresh = json_decode( get_option( 'drtalks_experts_meta', '{}' ), true );
-		$video_slugs_list = ( $meta_all_refresh[ $expert_slug ] ?? [] )['video_slugs'] ?? [];
-		if ( ! empty( $video_slugs_list ) ) {
-			$synced_count = (int) ( new WP_Query( [
-				'post_type'      => 'drtalks_video',
-				'post_status'    => 'publish',
-				'posts_per_page' => -1,
-				'fields'         => 'ids',
-				'meta_query'     => [
-					[
-						'key'     => '_drtalks_video_slug',
-						'value'   => $video_slugs_list,
-						'compare' => 'IN',
-					],
-				],
-			] ) )->found_posts;
-		} else {
-			$synced_count = 0;
-		}
-		self::set_expert_meta( $expert_slug, [ 'synced_count' => $synced_count ] );
+		set_transient( 'drtalks_sync_status_' . $expert_slug, [ 'status' => 'running' ], HOUR_IN_SECONDS );
+		DrTalks_Scheduler::queue_sync_expert( $expert_slug, 0, false ); // update_existing = false → create missing only.
 
-		set_transient( 'drtalks_sync_status_' . $expert_slug, [
-			'status'  => 'done',
-			'created' => $result['created'],
-			'updated' => $result['updated'],
-			'skipped' => $result['skipped'],
-		], HOUR_IN_SECONDS );
-
-		wp_send_json_success( array_merge(
-			[ 'slug' => $expert_slug, 'synced_count' => $synced_count ],
-			$result
-		) );
+		wp_send_json_success( [
+			'slug'        => $expert_slug,
+			'sync_status' => 'running',
+		] );
 	}
 
 	public static function get_sync_status(): void {

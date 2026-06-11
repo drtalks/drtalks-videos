@@ -75,7 +75,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 			<p>Each expert card shows:</p>
 			<ul>
 				<li>Their photo, name, and progress (e.g. <em>10 of 47 videos synced</em>)</li>
-				<li><strong>Sync Now</strong> — forces an immediate full sync</li>
+				<li><strong>Fetch Missing Videos</strong> — adds any of this expert's DrTalks videos that aren't on your site yet (the quick fix when the count is short, e.g. <em>181 of 182</em>)</li>
+				<li><strong>Update to Latest</strong> — re-downloads the newest details (titles, descriptions, hosts, guests, transcripts) for videos already added</li>
 				<li><strong>Remove</strong> — deletes the expert and all their auto-synced videos</li>
 			</ul>
 			<p><strong>Hidden Videos</strong> column: click "Hide" on any auto-synced video to keep it off your site. Hidden videos won't be re-added by future syncs. Click "Unhide" to restore.</p>
@@ -362,11 +363,15 @@ $meta = drtalks_get_video_meta( $id );
 					</tr>
 					<tr>
 						<td>Expert card shows only the slug, no name or photo</td>
-						<td>Click <strong>Sync Now</strong> on the expert card</td>
+						<td>Click <strong>Update to Latest</strong> on the expert card</td>
+					</tr>
+					<tr>
+						<td>Expert count never reaches the total (e.g. stuck at "181 of 182")</td>
+						<td>Click <strong>Fetch Missing Videos</strong> on the expert card to pull in any videos not yet imported. If the count still won't reach the total, the remaining video is likely hidden or trashed — check <strong>DrTalks Videos → Debug → Expert Sync Diagnostics</strong>, which names the exact video and why</td>
 					</tr>
 					<tr>
 						<td>Expert says "syncing" forever</td>
-						<td>Open <a href="<?php echo esc_url( admin_url( 'tools.php?page=action-scheduler&action-group=drtalks' ) ); ?>">Tools → Scheduled Actions</a> and check the <code>drtalks</code> group. If actions are stuck in "pending", your server's cron isn't firing — click <strong>Sync Now</strong> on the expert card, or set up a real cron job hitting <code>wp-cron.php</code></td>
+						<td>Open <a href="<?php echo esc_url( admin_url( 'tools.php?page=action-scheduler&action-group=drtalks' ) ); ?>">Tools → Scheduled Actions</a> and check the <code>drtalks</code> group. If actions are stuck in "pending", your server's cron isn't firing — click <strong>Update to Latest</strong> on the expert card, or set up a real cron job hitting <code>wp-cron.php</code></td>
 					</tr>
 				</tbody>
 			</table>

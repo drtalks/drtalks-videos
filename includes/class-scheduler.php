@@ -25,7 +25,7 @@ class DrTalks_Scheduler {
 
 	public static function init(): void {
 		add_action( self::HOOK_SYNC_ALL,          [ __CLASS__, 'run_sync_all_experts' ] );
-		add_action( self::HOOK_SYNC_EXPERT,       [ __CLASS__, 'run_sync_expert' ], 10, 2 );
+		add_action( self::HOOK_SYNC_EXPERT,       [ __CLASS__, 'run_sync_expert' ], 10, 3 );
 		add_action( self::HOOK_FETCH_TRANSCRIPT,  [ __CLASS__, 'run_fetch_transcript' ] );
 		add_action( self::HOOK_CLEANUP_ORPHANS,   [ __CLASS__, 'run_cleanup_orphans' ] );
 	}
@@ -85,8 +85,11 @@ class DrTalks_Scheduler {
 
 	/**
 	 * Queue a single-expert sync, optionally with an offset for batching.
+	 *
+	 * @param bool $update_existing When true, batches re-fetch + update existing posts
+	 *                              (the "Update to Latest" path) rather than insert-only.
 	 */
-	public static function queue_sync_expert( string $expert_slug, int $offset = 0 ): void {
+	public static function queue_sync_expert( string $expert_slug, int $offset = 0, bool $update_existing = false ): void {
 		if ( ! function_exists( 'as_enqueue_async_action' ) ) {
 			return;
 		}
@@ -95,12 +98,12 @@ class DrTalks_Scheduler {
 			return;
 		}
 
-		// Don't pile up duplicates if one is already pending for this expert+offset.
-		if ( as_has_scheduled_action( self::HOOK_SYNC_EXPERT, [ $expert_slug, $offset ], self::GROUP ) ) {
+		// Don't pile up duplicates if one is already pending for this expert+offset+mode.
+		if ( as_has_scheduled_action( self::HOOK_SYNC_EXPERT, [ $expert_slug, $offset, $update_existing ], self::GROUP ) ) {
 			return;
 		}
 
-		as_enqueue_async_action( self::HOOK_SYNC_EXPERT, [ $expert_slug, $offset ], self::GROUP );
+		as_enqueue_async_action( self::HOOK_SYNC_EXPERT, [ $expert_slug, $offset, $update_existing ], self::GROUP );
 	}
 
 	/**
@@ -147,14 +150,14 @@ class DrTalks_Scheduler {
 	 * @param string $expert_slug
 	 * @param int    $offset  Number of videos already processed in prior runs of this sweep.
 	 */
-	public static function run_sync_expert( string $expert_slug, int $offset = 0 ): void {
+	public static function run_sync_expert( string $expert_slug, int $offset = 0, bool $update_existing = false ): void {
 		$expert_slug = sanitize_title( $expert_slug );
 		if ( ! $expert_slug ) {
 			return;
 		}
 
 		$sync   = new DrTalks_Sync();
-		$result = $sync->sync_expert_batch( $expert_slug, self::BATCH_SIZE, $offset );
+		$result = $sync->sync_expert_batch( $expert_slug, self::BATCH_SIZE, $offset, $update_existing );
 
 		// Update synced_count using the new video_slugs model.
 		$meta_all    = json_decode( get_option( 'drtalks_experts_meta', '{}' ), true );
@@ -177,18 +180,19 @@ class DrTalks_Scheduler {
 		$meta_all[ $expert_slug ] = array_merge( $meta_all[ $expert_slug ] ?? [], [ 'synced_count' => $synced_count ] );
 		update_option( 'drtalks_experts_meta', wp_json_encode( $meta_all ), false );
 
-		// If there are more videos to process, queue the next batch.
+		// If there are more videos to process, queue the next batch (same mode).
 		if ( $result['has_more'] ) {
 			$next_offset = $offset + self::BATCH_SIZE;
 			as_enqueue_async_action(
 				self::HOOK_SYNC_EXPERT,
-				[ $expert_slug, $next_offset ],
+				[ $expert_slug, $next_offset, $update_existing ],
 				self::GROUP
 			);
 		} else {
 			set_transient( 'drtalks_sync_status_' . $expert_slug, [
-				'status'  => 'done',
-				'synced'  => $synced_count,
+				'status'       => 'done',
+				'synced'       => $synced_count,
+				'synced_count' => $synced_count,
 			], HOUR_IN_SECONDS );
 			// Record completion time; only update global "last completed" when no
 			// more expert sync batches are still pending.

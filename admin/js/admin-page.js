@@ -445,7 +445,8 @@
 				<span class="drtalks-sync-indicator" id="drtalks-sync-${slug}"></span>
 			</div>
 			<div class="drtalks-card-actions">
-				<button class="button drtalks-sync-now-btn" data-slug="${slug}">Sync Now</button>
+				<button class="button drtalks-fetch-missing-btn" data-slug="${slug}" title="Adds any of this expert's DrTalks videos that aren't on your site yet.">Fetch Missing Videos</button>
+				<button class="button drtalks-sync-now-btn" data-slug="${slug}" title="Re-downloads the newest details — titles, descriptions, hosts, guests, transcripts — for videos already added.">Update to Latest</button>
 				<button class="button drtalks-remove-expert-btn" data-slug="${slug}">Remove</button>
 			</div>
 		</div>`;
@@ -481,26 +482,41 @@
 			return;
 		}
 
+		// "Fetch Missing Videos" — queues a background batch (insert-only) and polls progress.
+		const fetchBtn = e.target.closest( '.drtalks-fetch-missing-btn' );
+		if ( fetchBtn && ! fetchBtn.disabled ) {
+			const slug = fetchBtn.dataset.slug;
+			fetchBtn.disabled = true;
+			fetchBtn.textContent = 'Starting…';
+			ajax( 'drtalks_fetch_missing_videos', { expert_slug: slug } ).then( res => {
+				fetchBtn.disabled = false;
+				fetchBtn.textContent = 'Fetch Missing Videos';
+				if ( ! res.success ) {
+					alert( 'Could not start fetch: ' + ( ( res.data && res.data.error ) || res.data || 'unknown error' ) );
+					return;
+				}
+				// Runs in the background via Action Scheduler — poll for progress.
+				pollSyncStatus( slug );
+				clearTimeout( globalSyncTimer );
+				globalSyncTimer = setTimeout( loadGlobalSyncStatus, 2000 );
+			} );
+			return;
+		}
+
 		const syncBtn = e.target.closest( '.drtalks-sync-now-btn' );
 		if ( syncBtn && ! syncBtn.disabled ) {
 			const slug = syncBtn.dataset.slug;
 			syncBtn.disabled = true;
-			syncBtn.textContent = 'Syncing…';
+			syncBtn.textContent = 'Starting…';
 			ajax( 'drtalks_sync_expert_now', { expert_slug: slug } ).then( res => {
 				syncBtn.disabled = false;
-				syncBtn.textContent = 'Sync Now';
+				syncBtn.textContent = 'Update to Latest';
 				if ( ! res.success ) {
-					alert( 'Sync failed: ' + ( ( res.data && res.data.error ) || res.data || 'unknown error' ) );
+					alert( 'Update failed: ' + ( ( res.data && res.data.error ) || res.data || 'unknown error' ) );
 					return;
 				}
-				// Update synced count on the card so the user sees progress.
-				const ex = state.expertSlugs.find( e => e.slug === slug );
-				if ( ex && typeof res.data.synced_count !== 'undefined' ) {
-					ex.synced_count = res.data.synced_count;
-					renderExpertCards();
-				}
-				replaceExpertVideos( slug );
-				// Refresh the status bar — sync batches may now be running.
+				// Runs in the background via Action Scheduler — poll for progress.
+				pollSyncStatus( slug );
 				clearTimeout( globalSyncTimer );
 				globalSyncTimer = setTimeout( loadGlobalSyncStatus, 2000 );
 			} );
@@ -628,7 +644,7 @@
 		}
 
 		let pollCount = 0;
-		const maxPolls = 36; // stop after 3 minutes (36 × 5s)
+		const maxPolls = 120; // stop after 10 minutes (120 × 5s) — large experts sync in many batches
 
 		syncPollers[ expertSlug ] = setInterval( function () {
 			pollCount++;

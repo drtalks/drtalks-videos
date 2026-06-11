@@ -250,6 +250,8 @@ class DrTalks_Debug {
 			echo '</tbody></table>';
 			?>
 
+			<?php self::render_expert_diagnostics(); ?>
+
 		<h2>Orphaned Video Posts</h2>
 		<p>Posts in the <code>drtalks_video</code> database table that are no longer tracked by any expert or individual video selection. They are hidden from the front-end but waste database space. The plugin automatically removes them once per day.</p>
 		<?php
@@ -318,6 +320,155 @@ class DrTalks_Debug {
 			<?php endif; ?>
 		</div>
 		<?php
+	}
+
+	/**
+	 * Per-expert sync reconciliation. Explains any "X of Y synced" gap by
+	 * comparing the API total and the stored video_slugs list against the posts
+	 * that actually exist, classifying every shortfall (trashed / draft / hidden
+	 * / never-created) and live-probing never-created slugs against the API.
+	 */
+	private static function render_expert_diagnostics(): void {
+		$slugs    = json_decode( get_option( 'drtalks_expert_slugs', '[]' ), true );
+		$meta_all = json_decode( get_option( 'drtalks_experts_meta', '{}' ), true );
+		if ( ! is_array( $slugs ) ) {
+			$slugs = [];
+		}
+		if ( ! is_array( $meta_all ) ) {
+			$meta_all = [];
+		}
+
+		// Hidden slugs (these are intentionally not published).
+		$hidden_raw = json_decode( get_option( 'drtalks_hidden_videos', '[]' ), true );
+		$hidden     = [];
+		if ( is_array( $hidden_raw ) ) {
+			foreach ( $hidden_raw as $item ) {
+				if ( ! empty( $item['slug'] ) ) {
+					$hidden[ sanitize_title( $item['slug'] ) ] = true;
+				}
+			}
+		}
+
+		echo '<h2>Expert Sync Diagnostics</h2>';
+		echo '<p>Reconciles each expert\'s expected video list against the posts that actually exist, to explain any &ldquo;X&nbsp;of&nbsp;Y synced&rdquo; gap. Never-created videos are probed live against the API to show why.</p>';
+
+		if ( empty( $slugs ) ) {
+			echo '<p><em>No active experts.</em></p>';
+			return;
+		}
+
+		$api          = new DrTalks_API_Client();
+		$probe_budget = 25; // Cap live API probes across the whole page.
+
+		foreach ( $slugs as $expert_slug ) {
+			$expert_slug = sanitize_title( $expert_slug );
+			if ( ! $expert_slug ) {
+				continue;
+			}
+
+			$meta        = $meta_all[ $expert_slug ] ?? [];
+			$name        = $meta['name'] ?? $expert_slug;
+			$api_total   = isset( $meta['video_count'] ) ? (int) $meta['video_count'] : null;
+			$video_slugs = array_values( array_unique( array_filter( array_map(
+				'sanitize_title',
+				(array) ( $meta['video_slugs'] ?? [] )
+			) ) ) );
+
+			// Map each known slug to its post status (any status).
+			$status_by_slug = [];
+			if ( $video_slugs ) {
+				$posts = get_posts( [
+					'post_type'      => 'drtalks_video',
+					'post_status'    => [ 'publish', 'draft', 'pending', 'future', 'private', 'trash' ],
+					'posts_per_page' => -1,
+					'fields'         => 'all',
+					'meta_query'     => [
+						[ 'key' => '_drtalks_video_slug', 'value' => $video_slugs, 'compare' => 'IN' ],
+					],
+				] );
+				foreach ( $posts as $p ) {
+					$vs = get_post_meta( $p->ID, '_drtalks_video_slug', true );
+					if ( $vs ) {
+						$status_by_slug[ $vs ] = $p->post_status;
+					}
+				}
+			}
+
+			$published   = 0;
+			$problems    = []; // [ slug, reason, detail ]
+			foreach ( $video_slugs as $vs ) {
+				$st = $status_by_slug[ $vs ] ?? null;
+				if ( $st === 'publish' ) {
+					$published++;
+					continue;
+				}
+				if ( isset( $hidden[ $vs ] ) ) {
+					$problems[] = [ $vs, 'hidden', 'In the hidden-videos list — intentionally not published.' ];
+				} elseif ( $st === 'trash' ) {
+					$problems[] = [ $vs, 'trashed', 'Post exists but is in the Trash.' ];
+				} elseif ( $st !== null ) {
+					$problems[] = [ $vs, $st, "Post exists with status \"$st\" (not published)." ];
+				} else {
+					// No post at all — probe the API to find out why creation failed.
+					$detail = 'No post exists for this slug.';
+					if ( $probe_budget > 0 ) {
+						$probe_budget--;
+						$res = $api->get_video( $vs );
+						if ( is_wp_error( $res ) ) {
+							$detail = 'API rejects this video: ' . $res->get_error_message();
+						} else {
+							$detail = 'API returns it fine — creation likely failed mid-sync; re-sync should fix it.';
+						}
+					}
+					$problems[] = [ $vs, 'never-created', $detail ];
+				}
+			}
+
+			$slug_count   = count( $video_slugs );
+			$count_note   = '';
+			if ( $api_total !== null && $api_total !== $slug_count ) {
+				$count_note = sprintf(
+					' <strong style="color:#b32d2e;">API total (%d) ≠ stored slug list (%d)</strong> — the slug list is incomplete; a full re-sync will rebuild it.',
+					$api_total,
+					$slug_count
+				);
+			}
+
+			$gap = ( $api_total !== null ? $api_total : $slug_count ) - $published;
+			$ok  = ( $gap <= 0 && empty( $problems ) );
+
+			printf(
+				'<h3 style="margin-bottom:4px;">%s <code>%s</code> %s</h3>',
+				esc_html( $name ),
+				esc_html( $expert_slug ),
+				$ok ? '<span style="color:green;">&#10003; fully synced</span>' : '<span style="color:#b32d2e;">&#9888; ' . (int) max( $gap, count( $problems ) ) . ' unaccounted</span>'
+			);
+
+			echo '<table class="widefat fixed" style="max-width:760px;margin-bottom:8px;"><tbody>';
+			printf( '<tr><th style="width:240px;">API total (video_count)</th><td>%s</td></tr>', $api_total === null ? '<em>unknown</em>' : (int) $api_total );
+			printf( '<tr><th>Stored video_slugs</th><td>%d%s</td></tr>', $slug_count, $count_note ); // phpcs:ignore WordPress.Security.EscapeOutput
+			printf( '<tr><th>Published posts</th><td>%d</td></tr>', $published );
+			echo '</tbody></table>';
+
+			if ( $problems ) {
+				echo '<table class="widefat striped" style="max-width:760px;margin-bottom:18px;"><thead><tr><th style="width:320px;">Video slug</th><th style="width:110px;">Issue</th><th>Detail</th></tr></thead><tbody>';
+				foreach ( $problems as $row ) {
+					printf(
+						'<tr><td><code>%s</code></td><td><strong>%s</strong></td><td>%s</td></tr>',
+						esc_html( $row[0] ),
+						esc_html( $row[1] ),
+						esc_html( $row[2] )
+					);
+				}
+				echo '</tbody></table>';
+			} else {
+				echo '<p style="color:green;margin-bottom:18px;">&#10003; Every expected video has a published post.</p>';
+			}
+		}
+
+		if ( $probe_budget <= 0 ) {
+			echo '<p><em>Note: live API probing was capped at 25 videos for this page load. Reload to probe more.</em></p>';
+		}
 	}
 
 	// -------------------------------------------------------------------------

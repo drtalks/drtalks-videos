@@ -143,9 +143,12 @@ class DrTalks_Sync {
 	 * Used by Action Scheduler — each batch is one action, lightweight enough to
 	 * complete in a few seconds. Caller re-schedules with offset+batch_size if has_more.
 	 *
+	 * @param  bool   $update_existing When true, re-fetch and update posts that already
+	 *                                 exist (and restore trashed ones) instead of skipping
+	 *                                 them. Used by the "Update to Latest" button.
 	 * @return array { processed: int, has_more: bool, error: string|null }
 	 */
-	public function sync_expert_batch( string $expert_slug, int $batch_size = 10, int $offset = 0 ): array {
+	public function sync_expert_batch( string $expert_slug, int $batch_size = 10, int $offset = 0, bool $update_existing = false ): array {
 		set_time_limit( 60 );
 
 		// Page math: API pages are 1-indexed, batch_size aligned.
@@ -201,7 +204,21 @@ class DrTalks_Sync {
 				continue;
 			}
 			if ( isset( $existing[ $slug ] ) ) {
-				// Already synced — skip to keep each batch cheap.
+				if ( ! $update_existing ) {
+					// Insert-only mode — skip existing to keep each batch cheap.
+					continue;
+				}
+				// Update mode: restore from trash if needed, then re-fetch + overwrite meta.
+				$post = $existing[ $slug ];
+				if ( $post->post_status === 'trash' ) {
+					wp_update_post( [ 'ID' => $post->ID, 'post_status' => 'publish' ] );
+				}
+				$video_data = $this->api->get_video( $slug );
+				if ( is_wp_error( $video_data ) ) {
+					continue;
+				}
+				$this->update_post_meta_from_data( $post->ID, $video_data );
+				$processed++;
 				continue;
 			}
 			$video_data = $this->api->get_video( $slug );
