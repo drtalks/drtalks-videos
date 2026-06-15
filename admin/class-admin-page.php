@@ -113,6 +113,8 @@ class DrTalks_Admin_Page {
 			'archiveSlug'         => get_option( 'drtalks_archive_slug', 'podcast' ),
 			'syncSchedule'        => get_option( 'drtalks_sync_schedule', 'daily' ),
 			'videoTemplateStyle'  => get_option( 'drtalks_video_template_style', 'theme' ),
+			'videosPerPage'       => (int) get_option( 'drtalks_videos_per_page', 12 ),
+			'videosPerRow'        => (int) get_option( 'drtalks_videos_per_row', 4 ),
 			'siteUrl'             => home_url( '/' ),
 			'selectedVideos'      => $selected_videos,
 			'expertSlugs'         => $expert_slugs,

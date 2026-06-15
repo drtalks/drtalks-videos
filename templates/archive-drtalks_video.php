@@ -12,6 +12,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 wp_enqueue_style( 'drtalks-frontend', DRTALKS_VIDEOS_URL . 'assets/frontend.css', [], DRTALKS_VIDEOS_VERSION );
+$drtalks_cols = (int) get_option( 'drtalks_videos_per_row', 4 );
+wp_add_inline_style( 'drtalks-frontend', '.drtalks-video-grid { --drtalks-cols: ' . $drtalks_cols . '; }' );
 wp_enqueue_script( 'drtalks-archive', DRTALKS_VIDEOS_URL . 'assets/archive.js', [], DRTALKS_VIDEOS_VERSION, true );
 wp_localize_script( 'drtalks-archive', 'drtalksArchive', [
 	'ajaxUrl' => admin_url( 'admin-ajax.php' ),

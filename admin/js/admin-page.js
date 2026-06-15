@@ -42,6 +42,8 @@
 		archiveSlug         : drtalksAdmin.archiveSlug,
 		syncSchedule        : drtalksAdmin.syncSchedule,
 		videoTemplateStyle  : drtalksAdmin.videoTemplateStyle || 'theme',
+		videosPerPage       : drtalksAdmin.videosPerPage || 12,
+		videosPerRow        : drtalksAdmin.videosPerRow || 4,
 		// Array of { slug, title, thumbnail_url, wp_post_url, drtalks_url }
 		selectedVideos : drtalksAdmin.selectedVideos || [],
 		// Array of { slug, name, photo_url, video_count }
@@ -74,6 +76,8 @@
 	const syncScheduleEl      = document.getElementById( 'drtalks-sync-schedule' );
 	const templateStyleSection = document.getElementById( 'drtalks-template-style-section' );
 	const templateStyleCards   = templateStyleSection ? templateStyleSection.querySelectorAll( '.drtalks-style-card' ) : [];
+	const videosPerPageInput   = document.getElementById( 'drtalks-videos-per-page' );
+	const videosPerRowInput    = document.getElementById( 'drtalks-videos-per-row' );
 
 	// --- Utilities -----------------------------------------------------------
 
@@ -137,13 +141,19 @@
 
 	// --- Archive toggle & slug -----------------------------------------------
 
+	const archiveGridSettings = document.getElementById( 'drtalks-archive-grid-settings' );
+
 	function updateArchiveUI() {
 		archiveSettings.style.display  = state.archiveEnabled ? '' : 'none';
 		archiveContent.style.display   = state.archiveEnabled ? '' : 'none';
 		if ( templateStyleSection ) {
 			templateStyleSection.style.display = state.archiveEnabled ? '' : 'none';
 		}
-		archiveUrlPreview.textContent = siteUrl + ( state.archiveSlug || 'videos' ) + '/';
+		if ( archiveGridSettings ) {
+			archiveGridSettings.style.display = state.archiveEnabled ? '' : 'none';
+		}
+		const previewUrl1 = siteUrl + ( state.archiveSlug || 'videos' ) + '/';
+		archiveUrlPreview.innerHTML = '<a href="' + escHtml( previewUrl1 ) + '" target="_blank" rel="noopener">' + escHtml( previewUrl1 ) + '</a>';
 	}
 
 	showWatchButtonCb.addEventListener( 'change', function () {
@@ -181,7 +191,8 @@
 	const saveSlug = debounce( saveSettings, 600 );
 	archiveSlugInput.addEventListener( 'input', function () {
 		state.archiveSlug = this.value.trim().replace( /[^a-z0-9-]/gi, '-' ).toLowerCase() || 'videos';
-		archiveUrlPreview.textContent = siteUrl + state.archiveSlug + '/';
+		const previewUrl2 = siteUrl + state.archiveSlug + '/';
+		archiveUrlPreview.innerHTML = '<a href="' + escHtml( previewUrl2 ) + '" target="_blank" rel="noopener">' + escHtml( previewUrl2 ) + '</a>';
 		saveSlug();
 	} );
 
@@ -189,6 +200,28 @@
 		state.syncSchedule = this.value;
 		saveSettings();
 	} );
+
+	const saveGridSettings = debounce( saveSettings, 600 );
+
+	if ( videosPerPageInput ) {
+		videosPerPageInput.addEventListener( 'input', function () {
+			const val = parseInt( this.value, 10 );
+			if ( val >= 1 && val <= 200 ) {
+				state.videosPerPage = val;
+				saveGridSettings();
+			}
+		} );
+	}
+
+	if ( videosPerRowInput ) {
+		videosPerRowInput.addEventListener( 'input', function () {
+			const val = parseInt( this.value, 10 );
+			if ( val >= 1 && val <= 6 ) {
+				state.videosPerRow = val;
+				saveGridSettings();
+			}
+		} );
+	}
 
 	let saveIndicator = null;
 
@@ -199,6 +232,8 @@
 			archive_slug        : state.archiveSlug,
 			sync_schedule       : state.syncSchedule,
 			video_template_style: state.videoTemplateStyle,
+			videos_per_page     : state.videosPerPage,
+			videos_per_row      : state.videosPerRow,
 		} ).then( res => {
 			showSaveIndicator( res.success );
 			if ( res.success && res.data.pretty_permalinks === false ) {

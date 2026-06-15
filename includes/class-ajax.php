@@ -235,6 +235,16 @@ class DrTalks_Ajax {
 			update_option( 'drtalks_video_template_style', $template_style );
 		}
 
+		$videos_per_page = (int) ( $_POST['videos_per_page'] ?? 12 );
+		if ( $videos_per_page >= 1 && $videos_per_page <= 200 ) {
+			update_option( 'drtalks_videos_per_page', $videos_per_page );
+		}
+
+		$videos_per_row = (int) ( $_POST['videos_per_row'] ?? 4 );
+		if ( $videos_per_row >= 1 && $videos_per_row <= 6 ) {
+			update_option( 'drtalks_videos_per_row', $videos_per_row );
+		}
+
 		wp_send_json_success( [
 			'archive_url'          => home_url( '/' . $archive_slug . '/' ),
 			'pretty_permalinks'    => ! empty( get_option( 'permalink_structure' ) ),

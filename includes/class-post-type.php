@@ -69,6 +69,8 @@ class DrTalks_Post_Type {
 		global $wp_query;
 
 		wp_enqueue_style( 'drtalks-frontend', DRTALKS_VIDEOS_URL . 'assets/frontend.css', [], DRTALKS_VIDEOS_VERSION );
+		$cols = (int) get_option( 'drtalks_videos_per_row', 4 );
+		wp_add_inline_style( 'drtalks-frontend', '.drtalks-video-grid { --drtalks-cols: ' . $cols . '; }' );
 		wp_enqueue_script( 'drtalks-archive', DRTALKS_VIDEOS_URL . 'assets/archive.js', [], DRTALKS_VIDEOS_VERSION, true );
 		wp_localize_script( 'drtalks-archive', 'drtalksArchive', [
 			'ajaxUrl' => admin_url( 'admin-ajax.php' ),
@@ -223,8 +225,7 @@ class DrTalks_Post_Type {
 			return;
 		}
 
-		// 12 per page gives a clean 4×3 or 3×4 grid layout.
-		$query->set( 'posts_per_page', 12 );
+		$query->set( 'posts_per_page', (int) get_option( 'drtalks_videos_per_page', 12 ) );
 
 		// Restrict to posts whose _drtalks_video_slug is in the allowed list.
 		$meta_query   = $query->get( 'meta_query' ) ?: [];

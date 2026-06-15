@@ -71,6 +71,23 @@ $drtalks_section_hidden  = $drtalks_archive_enabled ? '' : ' style="display:none
 			</div>
 		</div>
 
+		<div id="drtalks-archive-grid-settings" class="drtalks-archive-settings"<?php echo $drtalks_section_hidden; ?> style="margin-top:16px;display:flex;gap:32px;flex-wrap:wrap;">
+			<div>
+				<label for="drtalks-videos-per-page"><strong>Videos per page</strong></label>
+				<div style="margin-top:6px;">
+					<input type="number" id="drtalks-videos-per-page" class="small-text" min="1" max="200" value="<?php echo esc_attr( get_option( 'drtalks_videos_per_page', 12 ) ); ?>">
+				</div>
+				<p class="description" style="margin-top:4px;">Number of videos shown per page on the archive.</p>
+			</div>
+			<div>
+				<label for="drtalks-videos-per-row"><strong>Videos per row</strong></label>
+				<div style="margin-top:6px;">
+					<input type="number" id="drtalks-videos-per-row" class="small-text" min="1" max="6" value="<?php echo esc_attr( get_option( 'drtalks_videos_per_row', 4 ) ); ?>">
+				</div>
+				<p class="description" style="margin-top:4px;">Number of video columns on desktop (1–6).</p>
+			</div>
+		</div>
+
 		<div id="drtalks-template-style-section" class="drtalks-template-style-section"<?php echo $drtalks_section_hidden; ?>>
 			<h3>Single Video Page Layout</h3>
 			<p class="description">Choose how individual video pages look when a visitor clicks through to a video.</p>

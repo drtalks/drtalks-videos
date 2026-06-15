@@ -172,19 +172,19 @@
     flex-shrink: 0;
 }
 
-/* Video card grid — 4 cols → 3 → 2 → 1 */
+/* Video card grid — columns controlled via --drtalks-cols CSS variable (set inline by PHP) */
 .drtalks-video-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(var(--drtalks-cols, 4), 1fr);
     gap: 20px;
 }
 
 @media (max-width: 1100px) {
-    .drtalks-video-grid { grid-template-columns: repeat(3, 1fr); }
+    .drtalks-video-grid { grid-template-columns: repeat(min(var(--drtalks-cols, 4), 3), 1fr); }
 }
 
 @media (max-width: 720px) {
-    .drtalks-video-grid { grid-template-columns: repeat(2, 1fr); }
+    .drtalks-video-grid { grid-template-columns: repeat(min(var(--drtalks-cols, 4), 2), 1fr); }
 }
 
 @media (max-width: 440px) {
