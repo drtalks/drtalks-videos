@@ -45,6 +45,7 @@ require_once DRTALKS_VIDEOS_DIR . 'includes/class-metabox.php';
 require_once DRTALKS_VIDEOS_DIR . 'includes/class-block.php';
 require_once DRTALKS_VIDEOS_DIR . 'includes/class-shortcode.php';
 require_once DRTALKS_VIDEOS_DIR . 'includes/class-seo.php';
+require_once DRTALKS_VIDEOS_DIR . 'includes/class-divi-compat.php';
 
 register_activation_hook( __FILE__, 'drtalks_videos_activate' );
 register_deactivation_hook( __FILE__, 'drtalks_videos_deactivate' );
@@ -109,6 +110,7 @@ add_action( 'init', [ 'DrTalks_Block', 'register' ] );
 DrTalks_Ajax::init();
 DrTalks_Debug::init_admin();
 DrTalks_Scheduler::init();
+DrTalks_Divi_Compat::init();
 
 // Ensure the Action Scheduler recurring action is always registered.
 add_action( 'init', [ 'DrTalks_Scheduler', 'ensure_recurring_scheduled' ], 20 );
