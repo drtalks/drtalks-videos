@@ -40,6 +40,7 @@
 		showWatchButton     : drtalksAdmin.showWatchButton !== false,
 		archiveEnabled      : drtalksAdmin.archiveEnabled,
 		archiveSlug         : drtalksAdmin.archiveSlug,
+		archiveHeading      : drtalksAdmin.archiveHeading || 'Videos Archive',
 		syncSchedule        : drtalksAdmin.syncSchedule,
 		videoTemplateStyle  : drtalksAdmin.videoTemplateStyle || 'theme',
 		videosPerPage       : drtalksAdmin.videosPerPage || 12,
@@ -62,6 +63,7 @@
 	const archiveContent    = document.getElementById( 'drtalks-archive-content' );
 	const archiveSlugInput  = document.getElementById( 'drtalks-archive-slug' );
 	const archiveUrlPreview = document.getElementById( 'drtalks-archive-url-preview' );
+	const archiveHeadingInput = document.getElementById( 'drtalks-archive-heading' );
 	const videoSearchInput    = document.getElementById( 'drtalks-video-search' );
 	const searchResultsEl     = document.getElementById( 'drtalks-video-search-results' );
 	const selectedVideosEl    = document.getElementById( 'drtalks-selected-videos' );
@@ -196,6 +198,14 @@
 		saveSlug();
 	} );
 
+	if ( archiveHeadingInput ) {
+		const saveHeading = debounce( saveSettings, 600 );
+		archiveHeadingInput.addEventListener( 'input', function () {
+			state.archiveHeading = this.value;
+			saveHeading();
+		} );
+	}
+
 	syncScheduleEl.addEventListener( 'change', function () {
 		state.syncSchedule = this.value;
 		saveSettings();
@@ -230,6 +240,7 @@
 			show_watch_button   : state.showWatchButton ? 1 : 0,
 			archive_enabled     : state.archiveEnabled ? 1 : 0,
 			archive_slug        : state.archiveSlug,
+			archive_heading     : state.archiveHeading,
 			sync_schedule       : state.syncSchedule,
 			video_template_style: state.videoTemplateStyle,
 			videos_per_page     : state.videosPerPage,

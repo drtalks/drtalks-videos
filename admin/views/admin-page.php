@@ -69,6 +69,14 @@ $drtalks_section_hidden  = $drtalks_archive_enabled ? '' : ' style="display:none
 				</div>
 				<p class="description" id="drtalks-archive-url-preview"></p>
 			</div>
+
+			<div class="drtalks-slug-row" style="margin-top:16px;">
+				<label for="drtalks-archive-heading"><strong>Archive heading</strong></label>
+				<div style="margin-top:6px;">
+					<input type="text" id="drtalks-archive-heading" class="regular-text" value="<?php echo esc_attr( get_option( 'drtalks_archive_heading', 'Videos Archive' ) ); ?>" placeholder="Videos Archive">
+				</div>
+				<p class="description">The heading shown at the top of the videos archive page.</p>
+			</div>
 		</div>
 
 		<div id="drtalks-archive-grid-settings" class="drtalks-archive-settings"<?php echo $drtalks_section_hidden; ?> style="margin-top:16px;display:flex;gap:32px;flex-wrap:wrap;">

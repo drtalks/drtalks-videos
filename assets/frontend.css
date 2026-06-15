@@ -257,6 +257,7 @@
     font-size: 0.925rem;
     font-weight: 600;
     margin: 0 0 5px;
+    padding: 0 !important;
     line-height: 1.4;
     display: -webkit-box;
     -webkit-line-clamp: 2;

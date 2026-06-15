@@ -85,6 +85,7 @@ function drtalks_videos_uninstall(): void {
 
 	// Delete plugin options.
 	delete_option( 'drtalks_archive_slug' );
+	delete_option( 'drtalks_archive_heading' );
 	delete_option( 'drtalks_show_watch_button' );
 	delete_option( 'drtalks_archive_enabled' );
 	delete_option( 'drtalks_selected_videos' );
@@ -100,7 +101,10 @@ function drtalks_videos_uninstall(): void {
 // Boot all classes.
 add_action( 'init', [ 'DrTalks_Post_Type', 'register' ] );
 add_action( 'init', [ 'DrTalks_Post_Type', 'init_templates' ] );
-add_action( 'pre_get_posts', [ 'DrTalks_Post_Type', 'filter_archive_query' ] );
+// Priority 99: must run after themes that also hook pre_get_posts to force an
+// archive posts_per_page (e.g. Divi's et_custom_posts_per_page at priority 10),
+// otherwise the plugin's drtalks_videos_per_page setting gets overridden.
+add_action( 'pre_get_posts', [ 'DrTalks_Post_Type', 'filter_archive_query' ], 99 );
 add_action( 'init', [ 'DrTalks_Shortcode', 'init' ] );
 DrTalks_SEO::init();
 add_action( 'admin_menu', [ 'DrTalks_Admin_Page', 'add_menu' ] );

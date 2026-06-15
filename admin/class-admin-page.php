@@ -111,6 +111,7 @@ class DrTalks_Admin_Page {
 			'showWatchButton'     => (bool) get_option( 'drtalks_show_watch_button', true ),
 			'archiveEnabled'      => (bool) get_option( 'drtalks_archive_enabled', true ),
 			'archiveSlug'         => get_option( 'drtalks_archive_slug', 'podcast' ),
+			'archiveHeading'      => get_option( 'drtalks_archive_heading', 'Videos Archive' ),
 			'syncSchedule'        => get_option( 'drtalks_sync_schedule', 'daily' ),
 			'videoTemplateStyle'  => get_option( 'drtalks_video_template_style', 'theme' ),
 			'videosPerPage'       => (int) get_option( 'drtalks_videos_per_page', 12 ),

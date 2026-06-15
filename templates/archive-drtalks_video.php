@@ -30,7 +30,7 @@ $total = (int) $wp_query->found_posts;
 
 	<!-- Page header -->
 	<div class="drtalks-archive-header">
-		<h1 class="drtalks-archive-title"><?php esc_html_e( 'Videos Archive', 'drtalks-videos' ); ?></h1>
+		<h1 class="drtalks-archive-title"><?php echo esc_html( get_option( 'drtalks_archive_heading', 'Videos Archive' ) ); ?></h1>
 		<?php if ( $total > 0 ) : ?>
 		<span class="drtalks-archive-count"><?php echo esc_html( $total ); ?> video<?php echo $total !== 1 ? 's' : ''; ?></span>
 		<?php endif; ?>

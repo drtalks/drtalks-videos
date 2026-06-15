@@ -217,6 +217,12 @@ class DrTalks_Ajax {
 		update_option( 'drtalks_archive_enabled', $archive_enabled ? 1 : 0 );
 		update_option( 'drtalks_archive_slug', $archive_slug );
 
+		$archive_heading = sanitize_text_field( wp_unslash( $_POST['archive_heading'] ?? '' ) );
+		if ( '' === $archive_heading ) {
+			$archive_heading = 'Videos Archive';
+		}
+		update_option( 'drtalks_archive_heading', $archive_heading );
+
 		// Re-register CPT with updated settings, then flush so rules are correct immediately.
 		DrTalks_Post_Type::register();
 		flush_rewrite_rules( false );
