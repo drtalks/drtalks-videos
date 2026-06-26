@@ -1,8 +1,15 @@
 /*
  * DrTalks Videos — frontend styles
- * font-family is intentionally never set here — all text inherits from the active theme.
+ * A bare sans-serif fallback is set via :where() (zero specificity) so any theme
+ * font-family rule — even body-level — will override it automatically.
  * font-size and margin/padding/line-height are set explicitly throughout.
  */
+
+/* Zero-specificity fallback — themes override this for free */
+:where(.drtalks-archive-inner),
+:where(.drtalks-single-video) {
+    font-family: sans-serif;
+}
 
 .drtalks-video-embed,
 .drtalks-single-video {
@@ -193,23 +200,29 @@
 
 /* Video card */
 .drtalks-video-card {
-    border-radius: 8px;
+    border-radius: 10px;
     overflow: hidden;
-    background: transparent;
+    background: #fff;
+    box-shadow: 0 1px 4px rgba(0,0,0,.07), 0 0 0 1px rgba(0,0,0,.05);
 }
 
+.drtalks-video-card:hover {}
+
 .drtalks-video-card:hover .drtalks-card-thumbnail img {
-    opacity: .88;
+    opacity: .9;
+    transform: scale(1.03);
 }
 
 .drtalks-video-card:hover .drtalks-card-title {
-    text-decoration: underline;
+    color: #0d3c44;
 }
 
 .drtalks-card-link {
     text-decoration: none;
     color: inherit;
-    display: block;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
 }
 
 /* Thumbnail */
@@ -218,7 +231,8 @@
     aspect-ratio: 16 / 9;
     overflow: hidden;
     background: #111;
-    border-radius: 6px;
+    border-radius: 10px 10px 0 0;
+    flex-shrink: 0;
 }
 
 .drtalks-card-thumbnail img {
@@ -226,7 +240,7 @@
     height: 100%;
     object-fit: cover;
     display: block;
-    transition: opacity .15s ease;
+    transition: opacity .2s ease, transform .2s ease;
 }
 
 .drtalks-card-thumbnail-placeholder {
@@ -237,45 +251,173 @@
 
 .drtalks-card-duration {
     position: absolute;
-    bottom: 7px;
-    right: 7px;
-    background: rgba(0, 0, 0, .8);
+    bottom: 8px;
+    right: 8px;
+    background: rgba(0, 0, 0, .75);
     color: #fff;
     font-size: 11px;
     font-weight: 600;
-    padding: 2px 6px;
-    border-radius: 3px;
-    letter-spacing: .02em;
+    padding: 2px 7px;
+    border-radius: 4px;
+    letter-spacing: .04em;
+    backdrop-filter: blur(4px);
 }
 
 /* Card body */
 .drtalks-card-body {
-    padding: 10px 2px 8px;
+    padding: 12px 14px 14px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
 }
 
 .drtalks-card-title {
     font-size: 0.925rem;
     font-weight: 600;
-    margin: 0 0 5px;
+    margin: 0 0 10px;
     padding: 0 !important;
-    line-height: 1.4;
+    line-height: 1.45;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
+    transition: color .15s ease;
+    flex: 1;
 }
 
-.drtalks-card-expert {
+/* People section — single row: overlapping avatars + combined name */
+.drtalks-card-people {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin-top: auto;
+    padding-top: 10px;
+    border-top: 1px solid #f0f0f0;
+    min-width: 0;
+}
+
+/* Overlapping avatar stack */
+.drtalks-card-avatars {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+/* Shared avatar */
+.drtalks-card-avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    object-fit: cover;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border: 2px solid #fff;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1;
+    text-align: center;
+    box-sizing: border-box;
+}
+
+.drtalks-card-avatars .drtalks-card-avatar + .drtalks-card-avatar {
+    margin-left: -8px;
+}
+
+/* Initials fallback */
+.drtalks-card-avatar--initials {
+    background: linear-gradient(135deg, #0d3c44, #1a6272);
+    color: #fff;
+}
+
+/* "+N more" overflow badge */
+.drtalks-card-avatar--more {
+    background: #e8f0f1;
+    color: #0d3c44;
+    font-size: 9px;
+    font-weight: 700;
+}
+
+/* Combined names label */
+.drtalks-card-people-names {
     font-size: 0.8rem;
-    color: #666;
-    margin: 0;
+    font-weight: 500;
+    color: #444;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
 }
 
 /* Pagination */
 .drtalks-pagination {
-    margin-top: 40px;
+    margin-top: 48px;
     display: flex;
     justify-content: center;
+}
+
+.drtalks-pagination .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.drtalks-pagination .page-numbers {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+    height: 36px;
+    padding: 0 10px;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-decoration: none;
+    color: #444;
+    background: transparent;
+    border: 1px solid transparent;
+    transition: background .15s ease, border-color .15s ease, color .15s ease;
+    line-height: 1;
+}
+
+.drtalks-pagination a.page-numbers:hover {
+    background: #f0f4f5;
+    border-color: #d8e4e6;
+    color: #0d3c44;
+}
+
+.drtalks-pagination .page-numbers.current {
+    background: #0d3c44;
+    color: #fff;
+    border-color: #0d3c44;
+    font-weight: 600;
+}
+
+.drtalks-pagination .page-numbers.dots {
+    border: none;
+    color: #aaa;
+    min-width: 24px;
+    padding: 0;
+}
+
+.drtalks-pagination .prev.page-numbers,
+.drtalks-pagination .next.page-numbers {
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: .02em;
+    padding: 0 14px;
+    color: #0d3c44;
+    border-color: #c8d8da;
+}
+
+.drtalks-pagination .prev.page-numbers:hover,
+.drtalks-pagination .next.page-numbers:hover {
+    background: #0d3c44;
+    border-color: #0d3c44;
+    color: #fff;
 }
 
 /* No-results message */

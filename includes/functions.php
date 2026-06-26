@@ -362,14 +362,17 @@ function drtalks_render_block_video( string $slug, array $options = [] ): string
  */
 function drtalks_render_archive_card( int $post_id ): string {
 	$duration_secs = (int) get_post_meta( $post_id, '_drtalks_duration', true );
+	$guests_raw    = get_post_meta( $post_id, '_drtalks_guests', true );
 
 	return drtalks_get_template_html( 'content-archive-card.php', [
-		'post_id'     => $post_id,
-		'title'       => get_the_title( $post_id ),
-		'permalink'   => (string) get_permalink( $post_id ),
-		'thumbnail'   => (string) get_post_meta( $post_id, '_drtalks_thumbnail', true ),
-		'duration'    => drtalks_format_duration( $duration_secs ),
-		'expert_name' => (string) get_post_meta( $post_id, '_drtalks_expert_name', true ),
+		'post_id'      => $post_id,
+		'title'        => get_the_title( $post_id ),
+		'permalink'    => (string) get_permalink( $post_id ),
+		'thumbnail'    => (string) get_post_meta( $post_id, '_drtalks_thumbnail', true ),
+		'duration'     => drtalks_format_duration( $duration_secs ),
+		'expert_name'  => (string) get_post_meta( $post_id, '_drtalks_expert_name', true ),
+		'expert_photo' => (string) get_post_meta( $post_id, '_drtalks_expert_photo', true ),
+		'guests'       => is_array( $guests_raw ) ? $guests_raw : [],
 	] );
 }
 
