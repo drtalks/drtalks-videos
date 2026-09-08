@@ -48,6 +48,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 	</div>
 	<?php endif; ?>
 
+	<?php // Filled and un-hidden by assets/player-bridge.js when the embed sends chapters. ?>
+	<div class="drtalks-video-chapters" data-drtalks-chapters hidden>
+		<details>
+			<summary><?php esc_html_e( 'Chapters', 'drtalks-videos' ); ?></summary>
+			<div class="drtalks-chapters-list"></div>
+		</details>
+	</div>
+
 	<?php if ( $m['transcript'] ) : ?>
 		<div class="drtalks-video-transcript">
 			<details>

@@ -57,16 +57,23 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 		</div>
 
-		<?php if ( $m['transcript'] ) : ?>
-		<aside class="drtalks-yt-sidebar">
+		<?php // Rendered hidden when there is no transcript: chapters arrive at runtime
+		      // from the embed iframe (see assets/player-bridge.js), which un-hides the
+		      // sidebar and the chapters section once it has rows to show. ?>
+		<aside class="drtalks-yt-sidebar" <?php echo $m['transcript'] ? '' : 'hidden'; ?>>
+			<div class="drtalks-sidebar-chapters" data-drtalks-chapters hidden>
+				<h2 class="drtalks-sidebar-heading"><?php esc_html_e( 'Chapters', 'drtalks-videos' ); ?></h2>
+				<div class="drtalks-chapters-list"></div>
+			</div>
+			<?php if ( $m['transcript'] ) : ?>
 			<div class="drtalks-sidebar-transcript">
 				<h2 class="drtalks-sidebar-heading"><?php esc_html_e( 'Transcript', 'drtalks-videos' ); ?></h2>
 				<div class="drtalks-transcript-content">
 					<?php echo wp_kses( $m['transcript'], $m['allowed_html'] ); ?>
 				</div>
 			</div>
+			<?php endif; ?>
 		</aside>
-		<?php endif; ?>
 
 	</div>
 </div>

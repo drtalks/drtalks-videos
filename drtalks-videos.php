@@ -3,7 +3,7 @@
  * Plugin Name:  DrTalks Videos
  * Plugin URI:   https://github.com/drtalks/drtalks-videos-plugin
  * Description:  Sync and embed DrTalks expert videos on any WordPress site.
- * Version:      1.1.0
+ * Version:      1.2.0
  * Author:       DrTalks
  * Author URI:   https://drtalks.com
  * License:      GPL-2.0-or-later
@@ -18,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'DRTALKS_VIDEOS_VERSION', '1.1.0' );
+define( 'DRTALKS_VIDEOS_VERSION', '1.2.0' );
 define( 'DRTALKS_VIDEOS_FILE', __FILE__ );
 define( 'DRTALKS_VIDEOS_DIR', plugin_dir_path( __FILE__ ) );
 define( 'DRTALKS_VIDEOS_URL', plugin_dir_url( __FILE__ ) );

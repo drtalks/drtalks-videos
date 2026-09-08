@@ -10,6 +10,35 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
+ * Enqueue the player postMessage bridge (chapter list + click-to-seek).
+ * Call from every render path that outputs the embed iframe.
+ */
+function drtalks_enqueue_player_bridge(): void {
+	wp_enqueue_script(
+		'drtalks-player-bridge',
+		DRTALKS_VIDEOS_URL . 'assets/player-bridge.js',
+		[],
+		DRTALKS_VIDEOS_VERSION,
+		true
+	);
+}
+
+/**
+ * Chapters container markup, rendered hidden. assets/player-bridge.js fills it
+ * with rows and un-hides it when the embed iframe reports chapters.
+ */
+function drtalks_render_chapters_placeholder(): void {
+	?>
+	<div class="drtalks-video-chapters" data-drtalks-chapters hidden>
+		<details>
+			<summary><?php esc_html_e( 'Chapters', 'drtalks-videos' ); ?></summary>
+			<div class="drtalks-chapters-list"></div>
+		</details>
+	</div>
+	<?php
+}
+
+/**
  * Render the DrTalks video embed HTML for a given slug.
  *
  * Embed URL source priority:
@@ -57,6 +86,7 @@ function drtalks_render_video_embed( string $slug ): string {
 				allowfullscreen
 			></iframe>
 		</div>
+		<?php drtalks_render_chapters_placeholder(); ?>
 		<?php if ( $transcript ) : ?>
 		<div class="drtalks-video-transcript">
 			<details>
@@ -87,6 +117,7 @@ function drtalks_render_video_embed( string $slug ): string {
 		[],
 		DRTALKS_VIDEOS_VERSION
 	);
+	drtalks_enqueue_player_bridge();
 
 	return ob_get_clean();
 }
@@ -150,6 +181,7 @@ add_filter( 'the_content', function ( string $content ): string {
  * transcript, expert bio, Watch-on-DrTalks CTA) as an HTML string.
  */
 function drtalks_render_single_video_content( int $post_id ): string {
+	drtalks_enqueue_player_bridge();
 	$style = get_option( 'drtalks_video_template_style', 'theme' );
 	return $style === 'video'
 		? drtalks_render_single_video_content_video( $post_id )
@@ -292,6 +324,7 @@ function drtalks_render_block_video( string $slug, array $options = [] ): string
 	}
 
 	wp_enqueue_style( 'drtalks-frontend', DRTALKS_VIDEOS_URL . 'assets/frontend.css', [], DRTALKS_VIDEOS_VERSION );
+	drtalks_enqueue_player_bridge();
 
 	ob_start();
 	?>
@@ -308,6 +341,7 @@ function drtalks_render_block_video( string $slug, array $options = [] ): string
 					allowfullscreen
 				></iframe>
 			</div>
+			<?php drtalks_render_chapters_placeholder(); ?>
 			<?php endif; ?>
 
 		<?php if ( $show_video && ! empty( $m['drtalks_url'] ) && get_option( 'drtalks_show_watch_button', true ) ) : ?>

@@ -62,6 +62,82 @@
     overflow-y: auto;
 }
 
+/* Chapters (rows are built by assets/player-bridge.js from embed postMessage data) */
+
+/* Chapters/sidebar containers render hidden and are un-hidden by the bridge JS;
+   keep the hidden attribute authoritative over any theme display rules. */
+.drtalks-single-video [hidden],
+.drtalks-single-video[hidden],
+.drtalks-video-embed [hidden],
+.drtalks-yt-sidebar[hidden] {
+    display: none !important;
+}
+
+.drtalks-video-chapters {
+    margin-top: 16px;
+}
+
+.drtalks-video-chapters details {
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    padding: 8px 14px;
+}
+
+.drtalks-video-chapters summary {
+    cursor: pointer;
+    font-size: 0.95rem;
+    font-weight: 600;
+    user-select: none;
+    padding: 4px 0;
+}
+
+.drtalks-video-chapters .drtalks-chapters-list {
+    margin-top: 8px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.drtalks-chapter-row {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    width: 100%;
+    padding: 8px 10px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    text-align: left;
+    font: inherit;
+    font-size: 0.9rem;
+    color: inherit;
+    cursor: pointer;
+    transition: background-color .15s ease;
+}
+
+.drtalks-chapter-row:hover {
+    background: #f0f0f0;
+}
+
+.drtalks-chapter-row.is-active {
+    background: #e8f0fe;
+    font-weight: 600;
+}
+
+.drtalks-chapter-time {
+    flex-shrink: 0;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #666;
+    background: #efefef;
+    border-radius: 999px;
+    padding: 2px 8px;
+    font-variant-numeric: tabular-nums;
+}
+
+.drtalks-sidebar-chapters {
+    margin-bottom: 20px;
+}
+
 /* ---- Archive page --------------------------------------------------------- */
 
 .drtalks-archive-inner {

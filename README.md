@@ -16,6 +16,14 @@ Background jobs (sync, transcript fetch) run via Action Scheduler, bundled with 
 
 ---
 
+## Chapters
+
+Videos that have chapters on DrTalks automatically show a clickable chapter list next to (or under) the player — clicking a chapter seeks the video to that timestamp, and the currently-playing chapter is highlighted during playback.
+
+No configuration or syncing is involved: the chapter data comes from the embedded DrTalks player itself at page load, over a `postMessage` bridge (`assets/player-bridge.js`). Videos without chapters simply don't render the section.
+
+---
+
 ## Installation
 
 1. Copy the plugin folder into `wp-content/plugins/drtalks-videos/`.
