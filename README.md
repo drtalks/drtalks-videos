@@ -16,11 +16,11 @@ Background jobs (sync, transcript fetch) run via Action Scheduler, bundled with 
 
 ---
 
-## Chapters
+## Chapters & synced transcript
 
-Videos that have chapters on DrTalks automatically show a clickable chapter list next to (or under) the player — clicking a chapter seeks the video to that timestamp, and the currently-playing chapter is highlighted during playback.
+Videos with chapters and/or captions on DrTalks automatically get a Chapters/Transcript panel next to (or under) the player — tabbed when the video has both. Clicking a chapter or transcript line seeks the video to that timestamp, the currently-playing chapter/line is highlighted and kept in view during playback, and the transcript is searchable (match highlighting with previous/next navigation). Videos without captions fall back to the plain transcript HTML synced from DrTalks.
 
-No configuration or syncing is involved: the chapter data comes from the embedded DrTalks player itself at page load, over a `postMessage` bridge (`assets/player-bridge.js`). Videos without chapters simply don't render the section.
+Both come from the DrTalks API during sync, like all other video data. Chapters are stored directly; captions are fetched from the video's `.vtt` file and parsed into timestamped cues by a background job (`drtalks/fetch_cues`, visible under `Tools → Scheduled Actions`). Videos synced before this feature pick the data up on their next sync (scheduled, **Sync Now**, or **Update to Latest**). Seeking and playback-position highlighting talk to the embedded player over a small `postMessage` bridge (`assets/player-bridge.js`).
 
 ---
 

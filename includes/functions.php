@@ -24,16 +24,155 @@ function drtalks_enqueue_player_bridge(): void {
 }
 
 /**
- * Chapters container markup, rendered hidden. assets/player-bridge.js fills it
- * with rows and un-hides it when the embed iframe reports chapters.
+ * Forward the page's ?t= deep-link (seconds) onto the embed URL so the player
+ * starts at that timestamp. This is what makes the Clip schema "Key Moments"
+ * URLs (see class-seo.php) actually land at the right moment — the DrTalks
+ * embed player reads ?t= from its own URL and seeks on load.
  */
-function drtalks_render_chapters_placeholder(): void {
+function drtalks_embed_url_with_time( string $embed_url ): string {
+	if ( ! $embed_url || ! isset( $_GET['t'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only deep link.
+		return $embed_url;
+	}
+	$t = absint( wp_unslash( $_GET['t'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	return $t > 0 ? add_query_arg( 't', $t, $embed_url ) : $embed_url;
+}
+
+/**
+ * Format a chapter/cue start time for display: m:ss, or h:mm:ss past an hour.
+ */
+function drtalks_format_timestamp( float $seconds ): string {
+	$seconds = max( 0, (int) floor( $seconds ) );
+	$h       = (int) floor( $seconds / 3600 );
+	$m       = (int) floor( ( $seconds % 3600 ) / 60 );
+	$s       = $seconds % 60;
+
+	return $h > 0
+		? sprintf( '%d:%02d:%02d', $h, $m, $s )
+		: sprintf( '%d:%02d', $m, $s );
+}
+
+/**
+ * Print clickable, timestamped rows (shared by chapters and transcript cues).
+ * assets/player-bridge.js binds clicks (seek the embed player via postMessage)
+ * and highlights the active row from the player's playback position.
+ *
+ * @param array[] $items      Each: [ 'start' => float, 'end' => float, plus the text key ].
+ * @param string  $text_key   'title' (chapters) or 'text' (cues).
+ * @param string  $row_class  drtalks-chapter-row | drtalks-cue-row
+ * @param string  $time_class drtalks-chapter-time | drtalks-cue-time
+ * @param string  $text_class drtalks-chapter-title | drtalks-cue-text
+ */
+function drtalks_render_seek_rows( array $items, string $text_key, string $row_class, string $time_class, string $text_class ): void {
+	foreach ( $items as $item ) {
+		if ( ! is_array( $item ) || ! isset( $item['start'], $item[ $text_key ] ) ) {
+			continue;
+		}
+		drtalks_render_seek_row( (float) $item['start'], (float) ( $item['end'] ?? 0 ), (string) $item[ $text_key ], $row_class, $time_class, $text_class );
+	}
+}
+
+/**
+ * Print one clickable, timestamped row.
+ */
+function drtalks_render_seek_row( float $start, float $end, string $text, string $row_class, string $time_class, string $text_class ): void {
 	?>
-	<div class="drtalks-video-chapters" data-drtalks-chapters hidden>
-		<details>
-			<summary><?php esc_html_e( 'Chapters', 'drtalks-videos' ); ?></summary>
-			<div class="drtalks-chapters-list"></div>
-		</details>
+	<button
+		type="button"
+		class="<?php echo esc_attr( $row_class ); ?>"
+		data-start="<?php echo esc_attr( (string) $start ); ?>"
+		data-end="<?php echo esc_attr( (string) $end ); ?>"
+	>
+		<span class="<?php echo esc_attr( $time_class ); ?>"><?php echo esc_html( drtalks_format_timestamp( $start ) ); ?></span>
+		<span class="<?php echo esc_attr( $text_class ); ?>"><?php echo esc_html( $text ); ?></span>
+	</button>
+	<?php
+}
+
+/**
+ * Print the synced transcript: cue rows with a non-interactive chapter heading
+ * inserted where each chapter begins. The headings give the transcript visible
+ * on-page structure (real <h3>s, good for long-tail search) without turning
+ * the interactive seek rows themselves into headings.
+ */
+function drtalks_render_transcript_cues( array $cues, array $chapters ): void {
+	// Chapters come start-ascending from the API, but don't rely on it.
+	usort( $chapters, static function ( $a, $b ) {
+		return ( (float) ( $a['start'] ?? 0 ) ) <=> ( (float) ( $b['start'] ?? 0 ) );
+	} );
+
+	$chapter_index = 0;
+	$chapter_count = count( $chapters );
+
+	foreach ( $cues as $cue ) {
+		if ( ! is_array( $cue ) || ! isset( $cue['start'], $cue['text'] ) ) {
+			continue;
+		}
+		while ( $chapter_index < $chapter_count
+			&& (float) ( $chapters[ $chapter_index ]['start'] ?? 0 ) <= (float) $cue['start'] ) {
+			$title = (string) ( $chapters[ $chapter_index ]['title'] ?? '' );
+			if ( $title !== '' ) {
+				printf( '<h3 class="drtalks-transcript-chapter">%s</h3>', esc_html( $title ) );
+			}
+			$chapter_index++;
+		}
+		drtalks_render_seek_row( (float) $cue['start'], (float) ( $cue['end'] ?? 0 ), (string) $cue['text'], 'drtalks-cue-row', 'drtalks-cue-time', 'drtalks-cue-text' );
+	}
+}
+
+/**
+ * Chapters/Transcript panel — tabbed when the video has both, single heading
+ * when it has one, nothing when it has neither.
+ *
+ * The transcript is the synced variant (timestamped, click-to-seek cue rows
+ * parsed from the video's captions, with search) when cues are stored, and the
+ * static transcript HTML otherwise. Tab switching, search, seeking, and the
+ * playback-following highlight all live in assets/player-bridge.js.
+ */
+function drtalks_render_media_panel( array $chapters, array $cues, string $transcript, array $allowed_html ): void {
+	$has_chapters   = ! empty( $chapters );
+	$has_transcript = ! empty( $cues ) || $transcript !== '';
+	if ( ! $has_chapters && ! $has_transcript ) {
+		return;
+	}
+	?>
+	<div class="drtalks-media-panel">
+		<div class="drtalks-panel-header">
+			<?php if ( $has_chapters && $has_transcript ) : ?>
+				<button type="button" class="drtalks-panel-tab is-active" data-drtalks-tab="transcript"><?php esc_html_e( 'Transcript', 'drtalks-videos' ); ?></button>
+				<button type="button" class="drtalks-panel-tab" data-drtalks-tab="chapters"><?php esc_html_e( 'Chapters', 'drtalks-videos' ); ?></button>
+			<?php else : ?>
+				<h2 class="drtalks-panel-heading"><?php $has_chapters ? esc_html_e( 'Chapters', 'drtalks-videos' ) : esc_html_e( 'Transcript', 'drtalks-videos' ); ?></h2>
+			<?php endif; ?>
+		</div>
+
+		<?php if ( $has_chapters ) : ?>
+		<div class="drtalks-panel-section" data-drtalks-section="chapters" <?php echo $has_transcript ? 'hidden' : ''; ?>>
+			<div class="drtalks-chapters-list">
+				<?php drtalks_render_seek_rows( $chapters, 'title', 'drtalks-chapter-row', 'drtalks-chapter-time', 'drtalks-chapter-title' ); ?>
+			</div>
+		</div>
+		<?php endif; ?>
+
+		<?php if ( $has_transcript ) : ?>
+		<div class="drtalks-panel-section" data-drtalks-section="transcript">
+			<?php if ( ! empty( $cues ) ) : ?>
+				<p class="drtalks-transcript-note"><?php esc_html_e( 'Transcripts are generated automatically and may contain errors.', 'drtalks-videos' ); ?></p>
+				<div class="drtalks-transcript-search">
+					<input type="search" class="drtalks-search-input" placeholder="<?php esc_attr_e( 'Search transcript', 'drtalks-videos' ); ?>" aria-label="<?php esc_attr_e( 'Search transcript', 'drtalks-videos' ); ?>">
+					<span class="drtalks-search-count" hidden></span>
+					<button type="button" class="drtalks-search-prev" aria-label="<?php esc_attr_e( 'Previous match', 'drtalks-videos' ); ?>" hidden>&#9650;</button>
+					<button type="button" class="drtalks-search-next" aria-label="<?php esc_attr_e( 'Next match', 'drtalks-videos' ); ?>" hidden>&#9660;</button>
+				</div>
+				<div class="drtalks-transcript-content drtalks-transcript-synced">
+					<?php drtalks_render_transcript_cues( $cues, $chapters ); ?>
+				</div>
+			<?php else : ?>
+				<div class="drtalks-transcript-content">
+					<?php echo wp_kses( $transcript, $allowed_html ); ?>
+				</div>
+			<?php endif; ?>
+		</div>
+		<?php endif; ?>
 	</div>
 	<?php
 }
@@ -63,8 +202,13 @@ function drtalks_render_video_embed( string $slug ): string {
 			[ 'key' => '_drtalks_video_slug', 'value' => $slug ],
 		],
 	] );
+	$chapters = [];
+	$cues     = [];
 	if ( $cpt_posts ) {
 		$embed_url = get_post_meta( $cpt_posts[0]->ID, '_drtalks_embed_url', true );
+		$m         = drtalks_get_video_meta( $cpt_posts[0]->ID );
+		$chapters  = $m['chapters'];
+		$cues      = $m['cues'];
 	}
 	if ( ! $embed_url ) {
 		// Fallback: construct embed URL from slug.
@@ -79,36 +223,26 @@ function drtalks_render_video_embed( string $slug ): string {
 	<div class="drtalks-video-embed" data-slug="<?php echo esc_attr( $slug ); ?>">
 		<div class="drtalks-video-player" style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;">
 			<iframe
-				src="<?php echo esc_url( $embed_url ); ?>"
+				src="<?php echo esc_url( drtalks_embed_url_with_time( $embed_url ) ); ?>"
 				style="position:absolute;top:0;left:0;width:100%;height:100%;"
 				frameborder="0"
 				allow="autoplay; fullscreen; picture-in-picture"
 				allowfullscreen
 			></iframe>
 		</div>
-		<?php drtalks_render_chapters_placeholder(); ?>
-		<?php if ( $transcript ) : ?>
-		<div class="drtalks-video-transcript">
-			<details>
-				<summary><?php esc_html_e( 'View Transcript', 'drtalks-videos' ); ?></summary>
-				<div class="drtalks-transcript-content">
-					<?php
-					$allowed_tags = [
-						'p'      => [],
-						'strong' => [],
-						'em'     => [],
-						'ul'     => [],
-						'ol'     => [],
-						'li'     => [],
-						'br'     => [],
-						'a'      => [ 'href' => [], 'title' => [] ],
-					];
-					echo wp_kses( $transcript, $allowed_tags );
-					?>
-				</div>
-			</details>
-		</div>
-		<?php endif; ?>
+		<?php
+		drtalks_render_media_panel( $chapters, $cues, $transcript, [
+			'p'      => [],
+			'strong' => [],
+			'em'     => [],
+			'ul'     => [],
+			'ol'     => [],
+			'li'     => [],
+			'br'     => [],
+			'a'      => [ 'href' => [], 'title' => [] ],
+			'h3'     => [ 'class' => [] ],
+		] );
+		?>
 	</div>
 	<?php
 	wp_enqueue_style(
@@ -193,12 +327,26 @@ function drtalks_render_single_video_content( int $post_id ): string {
  */
 function drtalks_get_video_meta( int $post_id ): array {
 	$video_slug = get_post_meta( $post_id, '_drtalks_video_slug', true );
+
+	// Self-heal: queue the captions → cues parse for videos synced before cues
+	// existed (or whose captions file changed). One-shot per captions URL.
+	$captions_url = (string) get_post_meta( $post_id, '_drtalks_captions_url', true );
+	if ( $captions_url && get_post_meta( $post_id, '_drtalks_cues_source', true ) !== $captions_url
+		&& class_exists( 'DrTalks_Scheduler' ) ) {
+		DrTalks_Scheduler::queue_fetch_cues( $post_id );
+	}
+
+	$chapters = get_post_meta( $post_id, '_drtalks_chapters', true );
+	$cues     = get_post_meta( $post_id, '_drtalks_cues', true );
+
 	return [
 		'video_slug'   => $video_slug,
 		'embed_url'    => get_post_meta( $post_id, '_drtalks_embed_url', true ),
 		'thumbnail'    => get_post_meta( $post_id, '_drtalks_thumbnail', true ),
 		'description'  => get_post_meta( $post_id, '_drtalks_description', true ),
 		'transcript'   => get_post_meta( $post_id, '_drtalks_transcript', true ),
+		'chapters'     => is_array( $chapters ) ? $chapters : [],
+		'cues'         => is_array( $cues ) ? $cues : [],
 		'published_at' => get_post_meta( $post_id, '_drtalks_published_at', true ),
 		'expert_name'  => get_post_meta( $post_id, '_drtalks_expert_name', true ),
 		'expert_slug'  => get_post_meta( $post_id, '_drtalks_expert_slug', true ),
@@ -220,6 +368,7 @@ function drtalks_get_video_meta( int $post_id ): array {
 			'li'     => [],
 			'br'     => [],
 			'a'      => [ 'href' => [], 'title' => [], 'rel' => [], 'target' => [] ],
+			'h3'     => [ 'class' => [] ],
 		],
 	];
 }
@@ -335,13 +484,12 @@ function drtalks_render_block_video( string $slug, array $options = [] ): string
 			<?php if ( $show_video && ! empty( $m['embed_url'] ) ) : ?>
 			<div class="drtalks-video-player">
 				<iframe
-					src="<?php echo esc_url( $m['embed_url'] ); ?>"
+					src="<?php echo esc_url( drtalks_embed_url_with_time( $m['embed_url'] ) ); ?>"
 					frameborder="0"
 					allow="autoplay; fullscreen; picture-in-picture"
 					allowfullscreen
 				></iframe>
 			</div>
-			<?php drtalks_render_chapters_placeholder(); ?>
 			<?php endif; ?>
 
 		<?php if ( $show_video && ! empty( $m['drtalks_url'] ) && get_option( 'drtalks_show_watch_button', true ) ) : ?>
@@ -360,16 +508,16 @@ function drtalks_render_block_video( string $slug, array $options = [] ): string
 			</div>
 			<?php endif; ?>
 
-			<?php if ( $show_transcript && ! empty( $m['transcript'] ) ) : ?>
-			<div class="drtalks-video-transcript">
-				<details>
-					<summary><?php esc_html_e( 'View Transcript', 'drtalks-videos' ); ?></summary>
-					<div class="drtalks-transcript-content">
-						<?php echo wp_kses( $m['transcript'], $m['allowed_html'] ); ?>
-					</div>
-				</details>
-			</div>
-			<?php endif; ?>
+			<?php
+			// Chapters render whenever present; the transcript tab respects the
+			// block's show_transcript toggle.
+			drtalks_render_media_panel(
+				(array) ( $m['chapters'] ?? [] ),
+				$show_transcript ? (array) ( $m['cues'] ?? [] ) : [],
+				$show_transcript ? (string) ( $m['transcript'] ?? '' ) : '',
+				(array) ( $m['allowed_html'] ?? [] )
+			);
+			?>
 
 			<?php if ( $show_author && ! empty( $m['expert_name'] ) ) : ?>
 				<?php drtalks_render_expert_bio( $m ); ?>

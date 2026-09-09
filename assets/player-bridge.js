@@ -1,43 +1,30 @@
 /**
- * DrTalks player bridge — parent side.
+ * DrTalks player bridge + chapters/transcript panel behavior.
  *
- * Talks to the /embed/videos/{slug} iframe over window.postMessage using a
- * small custom protocol (the embed side lives in the DrTalks frontend at
- * src/components/players/embed-message-bridge.tsx — keep the two in sync):
+ * Chapter and transcript-cue rows are rendered server-side from synced data
+ * (see includes/functions.php drtalks_render_media_panel()). This script:
  *
- *   Parent → embed:
- *     { type: 'drtalks:hello' }                 announce; embed replies with chapters (if any)
- *     { type: 'drtalks:seek', time: number }    seek playhead (seconds) and play
- *   Embed → parent:
- *     { type: 'drtalks:ready' }
- *     { type: 'drtalks:chapters', chapters: [{ title, start, end }] }
- *     { type: 'drtalks:timeupdate', currentTime: number }
+ *  - connects rows to the embedded DrTalks player over window.postMessage
+ *      Parent → embed: { type: 'drtalks:seek', time: number }      seek (seconds) and play
+ *      Embed → parent: { type: 'drtalks:timeupdate', currentTime } throttled during playback
+ *  - switches the Chapters/Transcript tabs
+ *  - highlights the active chapter/cue from playback position and keeps the
+ *    active transcript line in view (paused while the reader scrolls or searches)
+ *  - powers the transcript search (match highlighting + prev/next navigation)
  *
- * If this protocol ever needs more than seek/chapters/timeupdate, consider
- * switching both sides to the Player.js spec
- * (https://github.com/embedly/player.js) rather than growing the custom one.
- *
- * Chapters arrive from the embed at runtime (the embed already fetches them
- * from Bunny), so nothing chapter-related is synced or stored in WordPress.
- * This script fills the [data-drtalks-chapters] container that the plugin
- * templates render hidden next to each player.
+ * (The embed side lives in the DrTalks frontend at
+ * src/components/players/embed-message-bridge.tsx — keep the two in sync.
+ * If the protocol ever needs more than seek + timeupdate, consider switching
+ * both sides to the Player.js spec — https://github.com/embedly/player.js —
+ * rather than growing the custom one.)
  */
 (function () {
 	'use strict';
 
 	var EMBED_PATH = '/embed/videos/';
+	var SCROLL_HOLD_MS = 4000;
 
-	/** iframe registrations: { iframe, origin, chaptersEl, rows: [{ el, start, end }] } */
 	var players = [];
-
-	function formatTime(seconds) {
-		var h = Math.floor(seconds / 3600);
-		var m = Math.floor((seconds % 3600) / 60);
-		var s = Math.floor(seconds % 60);
-		var mm = h > 0 ? String(m).padStart(2, '0') : String(m);
-		var ss = String(s).padStart(2, '0');
-		return h > 0 ? h + ':' + mm + ':' + ss : mm + ':' + ss;
-	}
 
 	function send(player, message) {
 		if (player.iframe.contentWindow) {
@@ -45,102 +32,222 @@
 		}
 	}
 
-	function renderChapters(player, chapters) {
-		var container = player.chaptersEl;
-		if (!container || !Array.isArray(chapters) || chapters.length === 0) {
-			return;
-		}
+	function escapeRegExp(text) {
+		return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+	}
 
-		var list = container.querySelector('.drtalks-chapters-list');
-		if (!list) {
-			return;
-		}
-		list.textContent = '';
-		player.rows = [];
+	// ---- Rows (seek + active highlight) --------------------------------------
 
-		chapters.forEach(function (chapter) {
-			if (typeof chapter.title !== 'string' || typeof chapter.start !== 'number') {
+	function collectRows(wrapper, selector, player) {
+		var rows = [];
+		wrapper.querySelectorAll(selector).forEach(function (el) {
+			var start = parseFloat(el.getAttribute('data-start'));
+			var end = parseFloat(el.getAttribute('data-end'));
+			if (isNaN(start)) {
 				return;
 			}
-			var row = document.createElement('button');
-			row.type = 'button';
-			row.className = 'drtalks-chapter-row';
-
-			var time = document.createElement('span');
-			time.className = 'drtalks-chapter-time';
-			time.textContent = formatTime(chapter.start);
-
-			var title = document.createElement('span');
-			title.className = 'drtalks-chapter-title';
-			title.textContent = chapter.title;
-
-			row.appendChild(time);
-			row.appendChild(title);
-			row.addEventListener('click', function () {
-				send(player, { type: 'drtalks:seek', time: chapter.start });
+			el.addEventListener('click', function () {
+				send(player, { type: 'drtalks:seek', time: start });
 			});
-
-			list.appendChild(row);
-			player.rows.push({
-				el: row,
-				start: chapter.start,
-				end: typeof chapter.end === 'number' ? chapter.end : Infinity,
-			});
+			rows.push({ el: el, start: start, end: isNaN(end) || end <= start ? Infinity : end });
 		});
+		return rows;
+	}
 
-		if (player.rows.length > 0) {
-			container.hidden = false;
-			// The video layout hides the whole sidebar when there is no transcript;
-			// un-hide it now that it has chapters to show.
-			var sidebar = container.closest('.drtalks-yt-sidebar');
-			if (sidebar) {
-				sidebar.hidden = false;
+	function setActive(rows, currentTime) {
+		var active = null;
+		rows.forEach(function (row) {
+			var isActive = currentTime >= row.start && currentTime < row.end;
+			row.el.classList.toggle('is-active', isActive);
+			if (isActive) {
+				active = row.el;
 			}
+		});
+		return active;
+	}
+
+	/**
+	 * Scroll `row` into view inside `container` (a line's height below the top
+	 * edge, like the drtalks.com panel), scrolling only the container.
+	 * Plain scrollTop assignment — the container's CSS scroll-behavior supplies
+	 * smoothness where the browser supports it. The suppress window keeps our
+	 * own scroll from being mistaken for the reader scrolling.
+	 */
+	function scrollRowIntoView(player, container, row, force) {
+		var containerRect = container.getBoundingClientRect();
+		var rowRect = row.getBoundingClientRect();
+		if (!force && rowRect.top >= containerRect.top && rowRect.bottom <= containerRect.bottom) {
+			return;
 		}
+		player.suppressScrollUntil = Date.now() + 600;
+		container.scrollTop = Math.max(0, rowRect.top - containerRect.top + container.scrollTop - 32);
 	}
 
 	function highlightActive(player, currentTime) {
-		player.rows.forEach(function (row) {
-			row.el.classList.toggle(
-				'is-active',
-				currentTime >= row.start && currentTime < row.end
-			);
+		setActive(player.chapterRows, currentTime);
+
+		var activeCue = setActive(player.cueRows, currentTime);
+		if (
+			!activeCue ||
+			!player.cueContainer ||
+			player.searchQuery !== '' ||
+			Date.now() < player.userScrollHold
+		) {
+			return;
+		}
+		scrollRowIntoView(player, player.cueContainer, activeCue, false);
+	}
+
+	// ---- Tabs -----------------------------------------------------------------
+
+	function setupTabs(panel) {
+		var tabs = panel.querySelectorAll('.drtalks-panel-tab');
+		if (tabs.length === 0) {
+			return;
+		}
+		tabs.forEach(function (tab) {
+			tab.addEventListener('click', function () {
+				var name = tab.getAttribute('data-drtalks-tab');
+				tabs.forEach(function (t) {
+					t.classList.toggle('is-active', t === tab);
+				});
+				panel.querySelectorAll('[data-drtalks-section]').forEach(function (section) {
+					section.hidden = section.getAttribute('data-drtalks-section') !== name;
+				});
+			});
 		});
 	}
 
+	// ---- Transcript search ----------------------------------------------------
+
+	function setupSearch(panel, player) {
+		var input = panel.querySelector('.drtalks-search-input');
+		var countEl = panel.querySelector('.drtalks-search-count');
+		var prevBtn = panel.querySelector('.drtalks-search-prev');
+		var nextBtn = panel.querySelector('.drtalks-search-next');
+		if (!input || player.cueRows.length === 0) {
+			return;
+		}
+
+		// Original cue text, captured once — match highlighting rebuilds each
+		// row's text from this, so repeated searches never compound markup.
+		var texts = player.cueRows.map(function (row) {
+			var span = row.el.querySelector('.drtalks-cue-text');
+			return { span: span, text: span ? span.textContent : '' };
+		});
+
+		var matches = [];
+		var current = -1;
+
+		function renderRowText(entry, query) {
+			if (!entry.span) {
+				return false;
+			}
+			entry.span.textContent = '';
+			if (!query) {
+				entry.span.textContent = entry.text;
+				return false;
+			}
+			var pattern = new RegExp('(' + escapeRegExp(query) + ')', 'gi');
+			var parts = entry.text.split(pattern);
+			var hit = false;
+			parts.forEach(function (part, i) {
+				if (i % 2 === 1) {
+					hit = true;
+					var mark = document.createElement('mark');
+					mark.textContent = part;
+					entry.span.appendChild(mark);
+				} else if (part !== '') {
+					entry.span.appendChild(document.createTextNode(part));
+				}
+			});
+			return hit;
+		}
+
+		function updateCount() {
+			var hasQuery = player.searchQuery !== '';
+			countEl.hidden = prevBtn.hidden = nextBtn.hidden = !hasQuery;
+			if (hasQuery) {
+				countEl.textContent = ( matches.length === 0 ? 0 : current + 1 ) + '/' + matches.length;
+				prevBtn.disabled = nextBtn.disabled = matches.length === 0;
+			}
+		}
+
+		function setCurrent(index) {
+			player.cueRows.forEach(function (row) {
+				row.el.classList.remove('is-search-match');
+			});
+			current = index;
+			if (current >= 0 && matches[current] !== undefined) {
+				var row = player.cueRows[matches[current]];
+				row.el.classList.add('is-search-match');
+				scrollRowIntoView(player, player.cueContainer, row.el, true);
+			}
+			updateCount();
+		}
+
+		function runSearch() {
+			var query = input.value.trim();
+			player.searchQuery = query;
+			matches = [];
+			texts.forEach(function (entry, index) {
+				if (renderRowText(entry, query)) {
+					matches.push(index);
+				}
+			});
+			setCurrent(-1);
+
+			// Search cleared — jump back to the currently-playing line.
+			if (query === '') {
+				player.userScrollHold = 0;
+				var active = player.cueContainer.querySelector('.drtalks-cue-row.is-active');
+				if (active) {
+					scrollRowIntoView(player, player.cueContainer, active, true);
+				}
+			}
+		}
+
+		function step(direction) {
+			if (matches.length === 0) {
+				return;
+			}
+			var next = current === -1
+				? ( direction === 1 ? 0 : matches.length - 1 )
+				: ( current + direction + matches.length ) % matches.length;
+			setCurrent(next);
+		}
+
+		input.addEventListener('input', runSearch);
+		input.addEventListener('keydown', function (event) {
+			if (event.key !== 'Enter') {
+				return;
+			}
+			event.preventDefault();
+			step(event.shiftKey ? -1 : 1);
+		});
+		prevBtn.addEventListener('click', function () { step(-1); });
+		nextBtn.addEventListener('click', function () { step(1); });
+	}
+
+	// ---- Player messages ------------------------------------------------------
+
 	function onMessage(event) {
 		var msg = event.data;
-		if (!msg || typeof msg !== 'object' || typeof msg.type !== 'string') {
+		if (!msg || typeof msg !== 'object' || msg.type !== 'drtalks:timeupdate' || typeof msg.currentTime !== 'number') {
 			return;
 		}
 
 		// Only accept messages from a registered embed iframe, from its own origin.
-		var player = null;
 		for (var i = 0; i < players.length; i++) {
-			if (players[i].iframe.contentWindow === event.source) {
-				player = players[i];
-				break;
+			var player = players[i];
+			if (player.iframe.contentWindow === event.source && event.origin === player.origin) {
+				highlightActive(player, msg.currentTime);
+				return;
 			}
 		}
-		if (!player || event.origin !== player.origin) {
-			return;
-		}
-
-		switch (msg.type) {
-			case 'drtalks:ready':
-				// Embed (re)announced itself — ask for chapters in case we missed them.
-				send(player, { type: 'drtalks:hello' });
-				break;
-			case 'drtalks:chapters':
-				renderChapters(player, msg.chapters);
-				break;
-			case 'drtalks:timeupdate':
-				if (typeof msg.currentTime === 'number') {
-					highlightActive(player, msg.currentTime);
-				}
-				break;
-		}
 	}
+
+	// ---- Setup ----------------------------------------------------------------
 
 	function register(iframe) {
 		var origin;
@@ -150,28 +257,57 @@
 			return;
 		}
 
-		// The chapters container lives inside the same plugin wrapper as the player.
+		// The panel lives inside the same plugin wrapper as the player.
 		var wrapper = iframe.closest('.drtalks-single-video, .drtalks-video-embed');
-		var chaptersEl = wrapper ? wrapper.querySelector('[data-drtalks-chapters]') : null;
+		var panel = wrapper ? wrapper.querySelector('.drtalks-media-panel') : null;
+		if (!panel) {
+			return;
+		}
 
-		var player = { iframe: iframe, origin: origin, chaptersEl: chaptersEl, rows: [] };
-		players.push(player);
+		var player = {
+			iframe: iframe,
+			origin: origin,
+			chapterRows: [],
+			cueRows: [],
+			cueContainer: panel.querySelector('.drtalks-transcript-synced'),
+			userScrollHold: 0,
+			suppressScrollUntil: 0,
+			searchQuery: '',
+		};
+		player.chapterRows = collectRows(panel, '.drtalks-chapter-row', player);
+		player.cueRows = collectRows(panel, '.drtalks-cue-row', player);
 
-		// Handshake: hello now (embed may already be up) and again on iframe load
-		// (covers the usual case where the embed finishes loading after us).
-		send(player, { type: 'drtalks:hello' });
-		iframe.addEventListener('load', function () {
-			send(player, { type: 'drtalks:hello' });
-		});
+		if (player.cueContainer) {
+			// Reader scrolling the transcript pauses follow-playback for a few
+			// seconds. wheel/touchmove are direct user intent (they never fire for
+			// programmatic scrolls); the scroll listener covers scrollbar dragging
+			// and keyboard, with the suppress window keeping our own follow
+			// scrolls from counting as the reader's.
+			var holdFollow = function () {
+				player.userScrollHold = Date.now() + SCROLL_HOLD_MS;
+			};
+			player.cueContainer.addEventListener('wheel', holdFollow, { passive: true });
+			player.cueContainer.addEventListener('touchmove', holdFollow, { passive: true });
+			player.cueContainer.addEventListener('scroll', function () {
+				if (Date.now() >= player.suppressScrollUntil) {
+					holdFollow();
+				}
+			});
+		}
+
+		setupTabs(panel);
+		setupSearch(panel, player);
+
+		if (player.chapterRows.length > 0 || player.cueRows.length > 0) {
+			players.push(player);
+		}
 	}
 
 	function init() {
-		var iframes = document.querySelectorAll('iframe[src*="' + EMBED_PATH + '"]');
-		if (iframes.length === 0) {
-			return;
+		document.querySelectorAll('iframe[src*="' + EMBED_PATH + '"]').forEach(register);
+		if (players.length > 0) {
+			window.addEventListener('message', onMessage);
 		}
-		iframes.forEach(register);
-		window.addEventListener('message', onMessage);
 	}
 
 	if (document.readyState === 'loading') {

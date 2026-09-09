@@ -290,6 +290,7 @@ class DrTalks_Shortcode {
 			'li'     => [],
 			'br'     => [],
 			'a'      => [ 'href' => [], 'title' => [], 'rel' => [], 'target' => [] ],
+			'h3'     => [ 'class' => [] ],
 		];
 	}
 

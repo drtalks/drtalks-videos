@@ -24,7 +24,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 		<?php if ( $m['embed_url'] ) : ?>
 		<div class="drtalks-video-player">
 			<iframe
-				src="<?php echo esc_url( $m['embed_url'] ); ?>"
+				src="<?php echo esc_url( drtalks_embed_url_with_time( $m['embed_url'] ) ); ?>"
 				frameborder="0"
 				allow="autoplay; fullscreen; picture-in-picture"
 				allowfullscreen
@@ -48,24 +48,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	</div>
 	<?php endif; ?>
 
-	<?php // Filled and un-hidden by assets/player-bridge.js when the embed sends chapters. ?>
-	<div class="drtalks-video-chapters" data-drtalks-chapters hidden>
-		<details>
-			<summary><?php esc_html_e( 'Chapters', 'drtalks-videos' ); ?></summary>
-			<div class="drtalks-chapters-list"></div>
-		</details>
-	</div>
-
-	<?php if ( $m['transcript'] ) : ?>
-		<div class="drtalks-video-transcript">
-			<details>
-				<summary><?php esc_html_e( 'View Transcript', 'drtalks-videos' ); ?></summary>
-				<div class="drtalks-transcript-content">
-					<?php echo wp_kses( $m['transcript'], $m['allowed_html'] ); ?>
-				</div>
-			</details>
-		</div>
-		<?php endif; ?>
+	<?php drtalks_render_media_panel( $m['chapters'], $m['cues'], $m['transcript'], $m['allowed_html'] ); ?>
 
 		<?php drtalks_render_expert_bio( $m ); ?>
 

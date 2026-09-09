@@ -20,6 +20,7 @@ class DrTalks_Scheduler {
 	const HOOK_SYNC_ALL         = 'drtalks/sync_all_experts';
 	const HOOK_SYNC_EXPERT      = 'drtalks/sync_expert';
 	const HOOK_FETCH_TRANSCRIPT = 'drtalks/fetch_transcript';
+	const HOOK_FETCH_CUES       = 'drtalks/fetch_cues';
 	const HOOK_CLEANUP_ORPHANS  = 'drtalks/cleanup_orphans';
 	const BATCH_SIZE            = 10;
 
@@ -27,6 +28,7 @@ class DrTalks_Scheduler {
 		add_action( self::HOOK_SYNC_ALL,          [ __CLASS__, 'run_sync_all_experts' ] );
 		add_action( self::HOOK_SYNC_EXPERT,       [ __CLASS__, 'run_sync_expert' ], 10, 3 );
 		add_action( self::HOOK_FETCH_TRANSCRIPT,  [ __CLASS__, 'run_fetch_transcript' ] );
+		add_action( self::HOOK_FETCH_CUES,        [ __CLASS__, 'run_fetch_cues' ] );
 		add_action( self::HOOK_CLEANUP_ORPHANS,   [ __CLASS__, 'run_cleanup_orphans' ] );
 	}
 
@@ -121,6 +123,19 @@ class DrTalks_Scheduler {
 			return;
 		}
 		as_enqueue_async_action( self::HOOK_FETCH_TRANSCRIPT, [ $slug ], self::GROUP );
+	}
+
+	/**
+	 * Queue a transcript-cues fetch (VTT captions → timestamped cues) for a post.
+	 */
+	public static function queue_fetch_cues( int $post_id ): void {
+		if ( ! function_exists( 'as_enqueue_async_action' ) || $post_id <= 0 ) {
+			return;
+		}
+		if ( as_has_scheduled_action( self::HOOK_FETCH_CUES, [ $post_id ], self::GROUP ) ) {
+			return;
+		}
+		as_enqueue_async_action( self::HOOK_FETCH_CUES, [ $post_id ], self::GROUP );
 	}
 
 	// --- Action handlers -----------------------------------------------------
@@ -227,6 +242,36 @@ class DrTalks_Scheduler {
 		if ( $transcript ) {
 			set_transient( 'drtalks_transcript_' . $slug, $transcript, DAY_IN_SECONDS );
 		}
+	}
+
+	/**
+	 * Fetch a video's .vtt captions file and store the parsed timestamped cues.
+	 *
+	 * Server-to-server fetch, so Bunny CDN CORS/referer rules don't apply.
+	 * `_drtalks_cues_source` records the captions URL that was processed — even on
+	 * an empty/failed parse — so the same URL isn't refetched on every sync.
+	 */
+	public static function run_fetch_cues( int $post_id ): void {
+		$post_id      = absint( $post_id );
+		$captions_url = (string) get_post_meta( $post_id, '_drtalks_captions_url', true );
+		if ( ! $post_id || ! $captions_url ) {
+			return;
+		}
+
+		$response = wp_remote_get( $captions_url, [ 'timeout' => 20 ] );
+		if ( is_wp_error( $response ) || wp_remote_retrieve_response_code( $response ) !== 200 ) {
+			DrTalks_Debug::warn( 'fetch_cues: captions fetch failed', [
+				'post_id' => $post_id,
+				'url'     => $captions_url,
+				'error'   => is_wp_error( $response ) ? $response->get_error_message() : wp_remote_retrieve_response_code( $response ),
+			] );
+			return; // Transient failure — leave source unset so the next sync retries.
+		}
+
+		$cues = drtalks_parse_vtt( wp_remote_retrieve_body( $response ) );
+
+		update_post_meta( $post_id, '_drtalks_cues', $cues );
+		update_post_meta( $post_id, '_drtalks_cues_source', $captions_url );
 	}
 
 	// --- Orphan cleanup ------------------------------------------------------

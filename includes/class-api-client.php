@@ -147,9 +147,29 @@ class DrTalks_API_Client {
 			'li'     => [],
 			'br'     => [],
 			'a'      => [ 'href' => [], 'title' => [] ],
+			// The API interleaves chapter headings into the transcript HTML
+			// (<h3 class="transcript-chapter-heading">) — keep them for on-page
+			// heading structure.
+			'h3'     => [ 'class' => [] ],
 		];
 
 		$expert = is_array( $v['expert'] ?? null ) ? $v['expert'] : [];
+
+		// Chapters come as an array of { title, start, end } (seconds). Keep only
+		// well-formed entries.
+		$chapters = [];
+		if ( ! empty( $v['chapters'] ) && is_array( $v['chapters'] ) ) {
+			foreach ( $v['chapters'] as $chapter ) {
+				if ( is_array( $chapter ) && isset( $chapter['title'], $chapter['start'], $chapter['end'] )
+					&& is_numeric( $chapter['start'] ) && is_numeric( $chapter['end'] ) ) {
+					$chapters[] = [
+						'title' => sanitize_text_field( (string) $chapter['title'] ),
+						'start' => (float) $chapter['start'],
+						'end'   => (float) $chapter['end'],
+					];
+				}
+			}
+		}
 
 		// Guests come back as a list (a video can have more than one). Sanitize each
 		// guest the same way the host/expert is sanitized and store as array meta.
@@ -177,6 +197,8 @@ class DrTalks_API_Client {
 			'_drtalks_description'      => wp_kses_post( $v['description'] ?? '' ),
 			'_drtalks_transcript'       => wp_kses( $v['transcript'] ?? '', $allowed_transcript_tags ),
 			'_drtalks_duration'         => absint( $v['duration'] ?? 0 ),
+			'_drtalks_captions_url'     => esc_url_raw( $v['captions_url'] ?? '' ),
+			'_drtalks_chapters'         => $chapters,
 			'_drtalks_published_at'     => sanitize_text_field( $v['published_at'] ?? '' ),
 			'_drtalks_synced_at'        => absint( time() ),
 			'_drtalks_expert_slug'      => sanitize_title( $expert['slug'] ?? '' ),

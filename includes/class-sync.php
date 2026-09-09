@@ -301,6 +301,8 @@ class DrTalks_Sync {
 			'_drtalks_description',
 			'_drtalks_transcript',
 			'_drtalks_duration',
+			'_drtalks_captions_url',
+			'_drtalks_chapters',
 			'_drtalks_published_at',
 			'_drtalks_synced_at',
 			'_drtalks_expert_slug',
@@ -316,6 +318,14 @@ class DrTalks_Sync {
 			if ( isset( $data[ $key ] ) ) {
 				update_post_meta( $post_id, $key, $data[ $key ] );
 			}
+		}
+
+		// Timestamped transcript cues are parsed from the video's .vtt captions
+		// file in a background job (server-side fetch, one-time per captions URL).
+		$captions_url = (string) ( $data['_drtalks_captions_url'] ?? '' );
+		if ( $captions_url && get_post_meta( $post_id, '_drtalks_cues_source', true ) !== $captions_url
+			&& class_exists( 'DrTalks_Scheduler' ) ) {
+			DrTalks_Scheduler::queue_fetch_cues( $post_id );
 		}
 	}
 

@@ -62,39 +62,197 @@
     overflow-y: auto;
 }
 
-/* Chapters (rows are built by assets/player-bridge.js from embed postMessage data) */
+/* ---- Chapters / Transcript panel ------------------------------------------
+   Rows are rendered server-side from synced data; assets/player-bridge.js adds
+   tab switching, click-to-seek, the .is-active playback highlight, and the
+   transcript search. */
 
-/* Chapters/sidebar containers render hidden and are un-hidden by the bridge JS;
-   keep the hidden attribute authoritative over any theme display rules. */
-.drtalks-single-video [hidden],
-.drtalks-single-video[hidden],
-.drtalks-video-embed [hidden],
-.drtalks-yt-sidebar[hidden] {
+.drtalks-media-panel {
+    margin-top: 16px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    background: #fff;
+}
+
+.drtalks-media-panel [hidden] {
     display: none !important;
 }
 
-.drtalks-video-chapters {
-    margin-top: 16px;
+.drtalks-panel-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 14px;
+    border-bottom: 1px solid #ececec;
 }
 
-.drtalks-video-chapters details {
-    border: 1px solid #e0e0e0;
-    border-radius: 4px;
-    padding: 8px 14px;
+.drtalks-panel-heading {
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: #888;
+    margin: 0;
 }
 
-.drtalks-video-chapters summary {
-    cursor: pointer;
-    font-size: 0.95rem;
+.drtalks-panel-tab {
+    padding: 6px 16px;
+    border: 0;
+    border-radius: 999px;
+    background: #f0f0f0;
+    font: inherit;
+    font-size: 0.75rem;
     font-weight: 600;
-    user-select: none;
-    padding: 4px 0;
+    line-height: 1;
+    color: #333;
+    cursor: pointer;
+    transition: background-color .15s ease, color .15s ease;
 }
 
-.drtalks-video-chapters .drtalks-chapters-list {
-    margin-top: 8px;
+.drtalks-panel-tab:hover {
+    background: #e4e4e4;
+}
+
+.drtalks-panel-tab.is-active {
+    background: #1a1a1a;
+    color: #fff;
+}
+
+.drtalks-panel-section {
+    padding: 8px;
+}
+
+.drtalks-panel-section .drtalks-chapters-list {
     max-height: 400px;
     overflow-y: auto;
+}
+
+.drtalks-transcript-note {
+    font-size: 0.75rem;
+    color: #999;
+    margin: 2px 6px 10px;
+}
+
+/* Transcript search */
+.drtalks-transcript-search {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0 4px 10px;
+}
+
+.drtalks-search-input {
+    flex: 1;
+    min-width: 0;
+    padding: 8px 14px;
+    border: 0;
+    border-radius: 999px;
+    background: #f2f2f2;
+    font: inherit;
+    font-size: 0.85rem;
+}
+
+.drtalks-search-input:focus {
+    outline: 2px solid #93b4f5;
+}
+
+.drtalks-search-count {
+    font-size: 0.75rem;
+    color: #666;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.drtalks-search-prev,
+.drtalks-search-next {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border: 0;
+    border-radius: 999px;
+    background: #f0f0f0;
+    color: #555;
+    font-size: 0.6rem;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.drtalks-search-prev:hover,
+.drtalks-search-next:hover {
+    background: #e4e4e4;
+}
+
+.drtalks-search-prev:disabled,
+.drtalks-search-next:disabled {
+    opacity: .4;
+    cursor: not-allowed;
+}
+
+/* Chapter headings inside the transcript — the synced view interleaves its own
+   (.drtalks-transcript-chapter); the static fallback keeps the API's
+   h3.transcript-chapter-heading. Sticky section headers: they pin to the top of
+   the scrolling transcript while their chapter's lines slide underneath. */
+.drtalks-transcript-chapter,
+.drtalks-transcript-content h3 {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    /* Top separation is padding (not margin) so the opaque background covers
+       rows scrolling beneath while the heading is stuck. */
+    margin: 0 0 6px;
+    padding: 14px 10px 7px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    line-height: 1.3;
+    color: #1a1a1a;
+    background: #fff;
+}
+
+.drtalks-transcript-chapter::before,
+.drtalks-transcript-content h3::before {
+    content: '';
+    flex-shrink: 0;
+    width: 3px;
+    height: 14px;
+    border-radius: 2px;
+    background: #1a1a1a;
+}
+
+.drtalks-transcript-chapter::after,
+.drtalks-transcript-content h3::after {
+    content: '';
+    flex: 1;
+    min-width: 16px;
+    height: 1px;
+    background: #e6e6e6;
+}
+
+.drtalks-transcript-chapter:first-child,
+.drtalks-transcript-content h3:first-child {
+    padding-top: 7px;
+}
+
+/* The video-layout sidebar has an off-white ground — match it so the sticky
+   header stays opaque over the rows scrolling beneath. */
+.drtalks-yt-sidebar .drtalks-transcript-chapter,
+.drtalks-yt-sidebar .drtalks-transcript-content h3 {
+    background: #fafafa;
+}
+
+.drtalks-cue-row mark {
+    background: #fde68a;
+    border-radius: 2px;
+    padding: 0 1px;
+}
+
+.drtalks-cue-row.is-search-match {
+    background: #fef3c7;
+    outline: 2px solid #f59e0b;
 }
 
 .drtalks-chapter-row {
@@ -134,8 +292,70 @@
     font-variant-numeric: tabular-nums;
 }
 
-.drtalks-sidebar-chapters {
-    margin-bottom: 20px;
+/* The video-layout sidebar has its own border/background — flatten the nested
+   panel chrome there. */
+.drtalks-yt-sidebar .drtalks-media-panel {
+    margin-top: 0;
+    border: 0;
+    background: transparent;
+}
+
+.drtalks-yt-sidebar .drtalks-media-panel .drtalks-panel-header {
+    padding: 0 0 12px;
+}
+
+.drtalks-yt-sidebar .drtalks-media-panel .drtalks-panel-section {
+    padding: 8px 0;
+}
+
+/* Synced transcript (timestamped cue rows rendered server-side from the video's
+   parsed captions; falls back to static transcript HTML when no cues stored) */
+/* No scroll-behavior:smooth here — it turns the bridge's programmatic scrollTop
+   follow into a smooth scroll, which some environments drop entirely. */
+.drtalks-transcript-content.drtalks-transcript-synced,
+.drtalks-yt-sidebar .drtalks-transcript-content.drtalks-transcript-synced {
+    margin-top: 0;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.drtalks-cue-row {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    width: 100%;
+    padding: 6px 10px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    text-align: left;
+    font: inherit;
+    font-size: 0.85rem;
+    line-height: 1.55;
+    color: #555;
+    cursor: pointer;
+    transition: background-color .15s ease;
+}
+
+.drtalks-cue-row:hover {
+    background: #f0f0f0;
+}
+
+.drtalks-cue-row.is-active {
+    background: #e8f0fe;
+    color: #111;
+    font-weight: 500;
+}
+
+.drtalks-cue-time {
+    flex-shrink: 0;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #666;
+    background: #efefef;
+    border-radius: 999px;
+    padding: 2px 7px;
+    font-variant-numeric: tabular-nums;
 }
 
 /* ---- Archive page --------------------------------------------------------- */
@@ -692,7 +912,7 @@
 
 /* Right column — transcript sidebar */
 .drtalks-yt-sidebar {
-    width: 340px;
+    width: 350px;
     flex-shrink: 0;
     position: sticky;
     top: 80px;

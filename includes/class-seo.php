@@ -6,7 +6,9 @@
  * so this class is the sole source of machine-readable metadata for video pages:
  *   - Schema.org VideoObject JSON-LD (transcript, publisher, host + guests as
  *     Person actors, duration, embed URL, thumbnail) — the key signal for video
- *     rich results and answer engines (AEO).
+ *     rich results and answer engines (AEO). Chapters are emitted as hasPart
+ *     Clip entries with ?t= deep-link URLs, the eligibility signal for Google
+ *     "Key Moments".
  *   - Meta description, Open Graph and Twitter Card tags.
  *   - Canonical URL, routed through a filter so the syndication strategy
  *     (self-canonical vs. canonical to drtalks.com) can be switched centrally.
@@ -134,6 +136,32 @@ class DrTalks_SEO {
 			$transcript = self::plain_text( (string) $m['transcript'] );
 			if ( $transcript !== '' ) {
 				$schema['transcript'] = $transcript;
+			}
+		}
+
+		// Chapters as Clip parts — the signal for Google "Key Moments" in video
+		// rich results. Each clip URL deep-links to this page at its timestamp
+		// (?t= is forwarded to the embed player, which seeks on load).
+		if ( ! empty( $m['chapters'] ) && is_array( $m['chapters'] ) ) {
+			$permalink = (string) get_permalink( $post_id );
+			$clips     = [];
+			foreach ( $m['chapters'] as $chapter ) {
+				if ( ! is_array( $chapter ) || empty( $chapter['title'] ) || ! isset( $chapter['start'] ) ) {
+					continue;
+				}
+				$clip = [
+					'@type'       => 'Clip',
+					'name'        => (string) $chapter['title'],
+					'startOffset' => (int) $chapter['start'],
+					'url'         => add_query_arg( 't', (int) $chapter['start'], $permalink ),
+				];
+				if ( isset( $chapter['end'] ) && (float) $chapter['end'] > (float) $chapter['start'] ) {
+					$clip['endOffset'] = (int) $chapter['end'];
+				}
+				$clips[] = $clip;
+			}
+			if ( $clips ) {
+				$schema['hasPart'] = $clips;
 			}
 		}
 
