@@ -317,6 +317,15 @@
 	text-decoration: none;
 }
 
+.drtalks-card-links a.drtalks-trash-video-btn {
+	color: #b32d2e;
+}
+
+.drtalks-card-links a.drtalks-trash-video-btn:hover {
+	color: #8a2424;
+	text-decoration: underline;
+}
+
 .drtalks-url-pending {
 	color: #a0a5aa;
 	font-style: italic;

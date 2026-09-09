@@ -53,10 +53,10 @@ $drtalks_section_hidden  = $drtalks_archive_enabled ? '' : ' style="display:none
 
 		<div class="drtalks-archive-toggle" style="margin-top:14px;">
 			<label class="drtalks-toggle-label">
-				<input type="checkbox" id="drtalks-archive-enabled" <?php checked( get_option( 'drtalks_archive_enabled', true ) ); ?>>
-				<span>Enable Videos Archive</span>
+				<input type="checkbox" id="drtalks-archive-enabled" <?php checked( ! get_option( 'drtalks_archive_enabled', true ) ); ?>>
+				<span>Disable Videos Archive</span>
 			</label>
-			<p class="description" style="margin:4px 0 0 0;">Enable a public video archive page on your site where visitors can browse all your videos.</p>
+			<p class="description" style="margin:4px 0 0 0;">The public video archive page is on by default. Check this to turn it off — individual videos can still be embedded via shortcode or block.</p>
 		</div>
 
 		<div id="drtalks-archive-settings" class="drtalks-archive-settings"<?php echo $drtalks_section_hidden; ?>>

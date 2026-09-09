@@ -39,7 +39,7 @@ The admin page (`DrTalks Videos` in the sidebar) has three boxes.
 
 ### 1. Video Archive
 
-A toggle that enables or disables a public archive page on your site. When **off**, the other two boxes are hidden — you can still embed individual videos via shortcode or block, you just won't have a `/{slug}/` browse page.
+The public archive page is **on by default**; a "Disable Videos Archive" toggle turns it off. When disabled, the archive settings are hidden — you can still embed individual videos via shortcode or block, you just won't have a `/{slug}/` browse page.
 
 When **on**:
 

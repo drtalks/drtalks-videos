@@ -163,8 +163,9 @@
 		saveSettings();
 	} );
 
+	// The checkbox is "Disable Videos Archive" — checked means the archive is OFF.
 	archiveEnabledCb.addEventListener( 'change', function () {
-		state.archiveEnabled = this.checked;
+		state.archiveEnabled = ! this.checked;
 		updateArchiveUI();
 		saveSettings();
 	} );
@@ -384,7 +385,7 @@
 		el.textContent = count > 0 ? '(' + count + ')' : '';
 	}
 
-	function renderVideoCard( v, actionBtn ) {
+	function renderVideoCard( v, actionBtn, extraLinks = '' ) {
 		const slug  = escHtml( v.slug || '' );
 		const title = escHtml( v.title || slug );
 		const thumb = escHtml( v.thumbnail_url || '' );
@@ -399,6 +400,7 @@
 				<div class="drtalks-card-links">
 					${ wpUrl ? `<a href="${wpUrl}" target="_blank" rel="noopener">View on site ↗</a>` : '' }
 					${ dtUrl ? `<a href="${dtUrl}" target="_blank" rel="noopener">View on DrTalks ↗</a>` : '' }
+					${extraLinks}
 				</div>
 			</div>
 			<div class="drtalks-card-actions">
@@ -798,7 +800,11 @@
 
 	function renderExpertVideoCard( v ) {
 		const slug = escHtml( v.slug || '' );
-		return renderVideoCard( v, `<button class="button drtalks-hide-video-btn" data-slug="${slug}">Hide</button>` );
+		return renderVideoCard(
+			v,
+			`<button class="button drtalks-hide-video-btn" data-slug="${slug}">Hide</button>`,
+			`<a href="#" class="drtalks-trash-video-btn" data-slug="${slug}">Trash</a>`
+		);
 	}
 
 	function attachExpertVideoListeners() {
@@ -815,6 +821,27 @@
 						state.hiddenVideos.push( res.data );
 						renderExpertVideos();
 						renderHiddenVideos();
+					} );
+			} );
+		} );
+
+		expertVideosEl.querySelectorAll( '.drtalks-trash-video-btn' ).forEach( link => {
+			link.addEventListener( 'click', function ( e ) {
+				e.preventDefault();
+				if ( ! window.confirm( 'Permanently delete this video post? "Fetch missing videos" (or any sync) will re-fetch it from DrTalks. Use "Hide" to keep a video off the site for good.' ) ) {
+					return;
+				}
+				const slug = this.dataset.slug;
+				this.textContent = 'Trashing…';
+				ajax( 'drtalks_trash_video', { slug } )
+					.then( res => {
+						if ( ! res.success ) {
+							this.textContent = 'Trash';
+							alert( res.data || 'Could not trash the post.' );
+							return;
+						}
+						state.expertVideos = state.expertVideos.filter( v => v.slug !== slug );
+						renderExpertVideos();
 					} );
 			} );
 		} );

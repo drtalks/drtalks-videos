@@ -27,6 +27,7 @@ class DrTalks_Ajax {
 		add_action( 'wp_ajax_drtalks_get_sync_status',        static function() { DrTalks_Debug::log_ajax( 'drtalks_get_sync_status' ); } );
 		add_action( 'wp_ajax_drtalks_global_sync_status',     static function() { DrTalks_Debug::log_ajax( 'drtalks_global_sync_status' ); } );
 		add_action( 'wp_ajax_drtalks_hide_video',         static function() { DrTalks_Debug::log_ajax( 'drtalks_hide_video' ); } );
+		add_action( 'wp_ajax_drtalks_trash_video',        static function() { DrTalks_Debug::log_ajax( 'drtalks_trash_video' ); } );
 		add_action( 'wp_ajax_drtalks_unhide_video',       static function() { DrTalks_Debug::log_ajax( 'drtalks_unhide_video' ); } );
 		add_action( 'wp_ajax_drtalks_get_orphans',        static function() { DrTalks_Debug::log_ajax( 'drtalks_get_orphans' ); } );
 		add_action( 'wp_ajax_drtalks_delete_orphans',     static function() { DrTalks_Debug::log_ajax( 'drtalks_delete_orphans' ); } );
@@ -48,6 +49,7 @@ class DrTalks_Ajax {
 		add_action( 'wp_ajax_drtalks_get_sync_status',        [ __CLASS__, 'get_sync_status' ] );
 		add_action( 'wp_ajax_drtalks_global_sync_status',     [ __CLASS__, 'global_sync_status' ] );
 		add_action( 'wp_ajax_drtalks_hide_video',       [ __CLASS__, 'hide_video' ] );
+		add_action( 'wp_ajax_drtalks_trash_video',      [ __CLASS__, 'trash_video' ] );
 		add_action( 'wp_ajax_drtalks_unhide_video',     [ __CLASS__, 'unhide_video' ] );
 		add_action( 'wp_ajax_drtalks_get_orphans',      [ __CLASS__, 'get_orphans' ] );
 		add_action( 'wp_ajax_drtalks_delete_orphans',   [ __CLASS__, 'delete_orphans' ] );
@@ -720,6 +722,28 @@ class DrTalks_Ajax {
 			'thumbnail_url' => $thumbnail_url,
 			'expert_slug'   => $expert_slug,
 		] );
+	}
+
+	/**
+	 * Permanently delete a synced video's CPT post. Unlike hide_video this adds
+	 * no hidden-list entry, so the video is fully re-fetched from the API by
+	 * "Fetch missing videos" or any other sync. "Hide" is the durable removal.
+	 */
+	public static function trash_video(): void {
+		self::verify();
+
+		$slug = sanitize_title( $_POST['slug'] ?? '' );
+		if ( ! $slug ) {
+			wp_send_json_error( 'slug is required', 400 );
+		}
+
+		// Already gone (e.g. clicked again after a reload) counts as done.
+		$post = self::get_cpt_post_by_slug( $slug );
+		if ( $post ) {
+			wp_delete_post( $post->ID, true );
+		}
+
+		wp_send_json_success( [ 'slug' => $slug ] );
 	}
 
 	public static function unhide_video(): void {
